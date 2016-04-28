@@ -3,6 +3,7 @@ package main
 import (
     "net"
     "fmt"
+    "github.com/songgao/water/waterutil"
 )
 
 type TinyServer struct {
@@ -10,6 +11,7 @@ type TinyServer struct {
     tunnel *Tunnel
     carrierProtocol string
     serverAddr string
+    clientRecord map[string]*Client
 }
 
 
@@ -48,7 +50,7 @@ func (s *TinyServer) Run() error {
     for {
         select {
             case tunnelData := <-ct:
-                 err = s.handleTunnelConn(tunnelData)
+                 err = s.handleTunnelData(tunnelData)
             case wanData := <-cw:
                  err = s.handleWanData(wanData)
         }
@@ -77,11 +79,10 @@ func StartUDPServer(serverAddr string, c chan[]byte) error {
 
      buf := make([]byte, BUFFERSIZE)
      for {
-         n, addr, err := conn.ReadFromUDP(buf)
+         _, addr, err := conn.ReadFromUDP(buf)
          if err != nil {
              fmt.Println("Error:reading from ", err, addr)
          } else {
-             //Record connection to connRecord
              c <- buf
          }
      }
@@ -103,9 +104,8 @@ func StartTCPServer(serverAddr string, c chan[]byte) error {
      }
      defer ln.Close()
 
-     buf := make([]byte, BUFFERSIZE)
      for {
-         conn, err := ln.Accept()
+         conn, err := ln.AcceptTCP()
          if err != nil {
              fmt.Println("Error: ", err)
          } else {
@@ -115,33 +115,41 @@ func StartTCPServer(serverAddr string, c chan[]byte) error {
     return err
 }
 
-func handleTCPConn(conn *net.Conn, c chan[]byte) {
-    //Record connection to connRecord
-    n, err := conn.Read(buf)
+func handleTCPConn(conn *net.TCPConn, c chan[]byte) {
+    buf := make([]byte, BUFFERSIZE)
+
+    _, err := conn.Read(buf)
+    //clentRecord[waterUtil.IPv4.String()] = conn
+
     if err != nil {
-        fmt.Println("Error:reading from ", err, addr)
+        fmt.Println("Error:reading ", err)
     } else {
         c <- buf
     }
 }
 
-func (s *TinyServer)handleWanData(buf []byte) {
-   dst := waterUtil.IPv4Destination(buf)
-   src := waterUtil.IPv4Source(buf)
-   if vpnConn := connRecord[dst.String()]; vpnConn != nil {
-       _, err := vpnConn.Write(buf)
+func (s *TinyServer)handleWanData(buf []byte) error{
+   var err error
+   //TODO: Decrypt buf using pre-shared key
+   dst := waterutil.IPv4Destination(buf)
+   //src := waterutil.IPv4Source(buf)
+   if client := s.clientRecord[dst.String()]; client != nil {
+       _, err = client.Write(buf)
    } else {
        //TODO: decrypt the packet
-       s.tunnel.Write(buf)
+       _, err = s.tunnel.Write(buf)
    }
+   return err
 }
 
-func (s *TinyServer)handleTunnelData(buf []byte) {
-    dst := waterUtil.IPv4Destination(buf)
-    if vpnConn := connRecord[dst.String()]; vpnConn != nil {
-        _, err := vpnConn.Write(buf)
+func (s *TinyServer)handleTunnelData(buf []byte) error {
+    var err error
+    dst := waterutil.IPv4Destination(buf)
+    if client := s.clientRecord[dst.String()]; client != nil {
+        _, err = client.Write(buf)
         if err != nil {
             fmt.Println("Failed to handle incomming tun data!")
         }
     }
+    return err
 }

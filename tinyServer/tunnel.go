@@ -4,16 +4,15 @@ import (
     "net"
     "fmt"
     "github.com/songgao/water"
-    "github.com/songgao/water/waterutil"
     "github.com/codeskyblue/go-sh"
 )
 
-const BUFFERSIZE 1522
+const BUFFERSIZE int = 1522
 
 type Tunnel struct {
     vpnGateway net.IP
     vpnNet *net.IPNet
-    ifce  Interface
+    ifce  *water.Interface
 }
 
 func CreateTunnel(vpnnet string) (*Tunnel, error) {
@@ -23,16 +22,16 @@ func CreateTunnel(vpnnet string) (*Tunnel, error) {
         return nil, nil
     }
 
-    ifce, err := water.NewTun("")
+    ifce, err := water.NewTUN("")
     if err != nil{
         fmt.Println("Error creating tun interface", err)
-    } else {
-        tunnel := Tunnel{
+        return nil, err
+    }
+    tunnel := Tunnel{
                 vpnGateway: ip,
                 vpnNet: ipNet,
                 ifce: ifce}
-        fmt.Println("Created tun interface ", ifce)
-    }
+    fmt.Println("Created tun interface ", ifce)
 
     err = tunnel.Bringup()
     err = tunnel.AddAddr()
@@ -43,7 +42,7 @@ func CreateTunnel(vpnnet string) (*Tunnel, error) {
 func (t *Tunnel) Run(c chan []byte) {
     buffer := make([]byte, BUFFERSIZE)
     for {
-        _, err = t.ifce.Read(buffer)
+        _, err := t.ifce.Read(buffer)
         if err != nil {
             fmt.Println("Error reading from tunnel.")
         }
@@ -52,18 +51,24 @@ func (t *Tunnel) Run(c chan []byte) {
 }
 
 func (t *Tunnel) Bringup() error {
-    return sh.Command("ip", "link", "set", "dev", t.ifce.name, "up").Run()
+    return sh.Command("ip", "link", "set", "dev", t.ifce.Name(), "up").Run()
 }
 
 func (t *Tunnel) AddAddr() error {
-    return sh.Command("ip", "addr", "add", t.vpnNet, "dev", t.ifce.name).Run()
+    return sh.Command("ip", "addr", "add", t.vpnNet, "dev", t.ifce.Name()).Run()
 }
 
-func GetDefaultRouteIf() (string, error) {
+func (t *Tunnel) Write(p []byte) (n int, err error) {
+    n, err = t.ifce.Write(p)
+    return n, err
+}
+
+func GetDefaultRouteIf() ([]byte, error) {
     return sh.Command("ip", "route", "show", "default").Command("awk", "'/default/ {print $5}'").Output()
 }
 
 func SetNatRule() error {
+    var err error
     default_if, err := GetDefaultRouteIf()
     if err != nil {
         fmt.Println("Cannot get the default route interface")
