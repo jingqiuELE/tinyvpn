@@ -34,8 +34,20 @@ func CreateTunnel(vpnnet string) (*Tunnel, error) {
     fmt.Println("Created tun interface ", ifce)
 
     err = tunnel.Bringup()
+    if err != nil {
+        fmt.Println("Error bringup tunnel:", ifce.Name())
+    }
+
     err = tunnel.AddAddr()
-    SetNatRule()
+    if err != nil {
+        fmt.Println("Error adding address to tunnel:", ifce.Name())
+    }
+
+    err = SetNAT()
+    if err != nil {
+        fmt.Println("Error seting up NAT:", ifce.Name())
+    }
+
     return &tunnel, err
 }
 
@@ -55,7 +67,7 @@ func (t *Tunnel) Bringup() error {
 }
 
 func (t *Tunnel) AddAddr() error {
-    return sh.Command("ip", "addr", "add", t.vpnNet, "dev", t.ifce.Name()).Run()
+    return sh.Command("ip", "addr", "add", t.vpnNet.String(), "dev", t.ifce.Name()).Run()
 }
 
 func (t *Tunnel) Write(p []byte) (n int, err error) {
@@ -67,11 +79,11 @@ func GetDefaultRouteIf() ([]byte, error) {
     return sh.Command("ip", "route", "show", "default").Command("awk", "'/default/ {print $5}'").Output()
 }
 
-func SetNatRule() error {
+func SetNAT() error {
     var err error
     default_if, err := GetDefaultRouteIf()
     if err != nil {
-        fmt.Println("Cannot get the default route interface")
+        fmt.Println("Cannot get the default routing interface")
     } else {
         err = sh.Command("iptables", "-t", "nat", "-A", "POSTROUTING", "-o", default_if, "-j", "MASQUERADE").Run()
     }
