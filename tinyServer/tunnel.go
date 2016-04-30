@@ -75,8 +75,9 @@ func (t *Tunnel) Write(p []byte) (n int, err error) {
     return n, err
 }
 
-func GetDefaultRouteIf() ([]byte, error) {
-    return sh.Command("ip", "route", "show", "default").Command("awk", "'/default/ {print $5}'").Output()
+func GetDefaultRouteIf() (string, error) {
+    ifce, err := sh.Command("ip", "route", "show", "default").Command("awk", "/default/ {print $5}").Output()
+    return string(ifce[:]), err
 }
 
 func SetNAT() error {
@@ -85,6 +86,7 @@ func SetNAT() error {
     if err != nil {
         fmt.Println("Cannot get the default routing interface")
     } else {
+        fmt.Println("Default route interface is", default_if)
         err = sh.Command("iptables", "-t", "nat", "-A", "POSTROUTING", "-o", default_if, "-j", "MASQUERADE").Run()
     }
     return err
