@@ -6,14 +6,14 @@ Two directly connected switches plus a host for each switch:
 
             ==========         ===============         ===========
             |        |         |             |         |         |
-            | client |---s1 ---|eth1 r0  eth3| ---s2---| vserver |
+            | client |---s1 ---|eth1 r0  eth3| ---s2---|  server |
             |        |         |             |         |         |
             |        |         |    eth2     |         |         |
             ==========         ===============         ===========
                                      |
                                      |                 =============
                                      |                 |           |
-                                     ---------s3-------| webserver | 
+                                     ---------s3-------|   target  | 
                                                        |           |
                                                        =============
 
@@ -59,13 +59,13 @@ class SimTopo( Topo ):
         # Add hosts with IP config 
         client = self.addHost( 'client', ip="10.0.1.100/24",
                                defaultRoute="via 10.0.1.1")
-        vserver = self.addHost( 'vserver', ip="10.0.3.100/24", 
+        server = self.addHost( 'server', ip="10.0.3.100/24", 
                                defaultRoute="via 10.0.3.1")
-        webserver = self.addHost( 'webserver', ip="10.0.5.100/24", 
+        target = self.addHost( 'target', ip="10.0.5.100/24", 
                                defaultRoute="via 10.0.5.1")
 
         # Add links between hosts and switches.
-        for h, s in [ (client, s1), (vserver, s2), (webserver, s3) ]:
+        for h, s in [ (client, s1), (server, s2), (target, s3) ]:
             self.addLink(h, s)
 
 def run():
