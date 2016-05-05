@@ -9,10 +9,10 @@ Server Architecture
 1. Authentication Service: 
     1. Exchange username and password for session key
     2. Put session key into client-session map
-2. Transport Layer Listener: 
+2. Connection Layer Listener: 
     1. TCP or UDP socket listener, accepts connection/packets from the client
     2. Extract session key to create / load corresponding client, maintains client-session map
-    3. Put packets into a packets channel
+    3. Put packets into a encrypted packets channel
     4. Accepts packets from packets return channel, lookup the corresponding client connection and return the packets
 3. Decryption/Encryption Layer: 
     1. Decrypt the packet content from packets channel to tun
@@ -34,20 +34,20 @@ type Packet struct {
 }
 ````
 
-##### Client
+##### Session
 ````
-type Transport Interface {
+type Connection Interface {
     readPacket() Packet
     writePacket(p Packet)
 }
 
-type Client struct {
-    t Transport
+type Session struct {
+    c Connection
 }
 ````
 
-##### Client-Session Map
-A map with sessionkey as the key, and Client as the value. When first
+##### Sessionkey-Session Map
+A map with sessionkey as the key, and Session as the value. When first
 authenticated, a sessionkey is placed in the map, with nil as the value. Until
 the first connection from the client with the corresponding sessionkey is made,
 the newly created client is placed into the map.
