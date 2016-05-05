@@ -1,18 +1,23 @@
-MININET_NAME = tinyvpn_mininet 
+MININET_NAME = tinyvpn_mininet
 TCPDUMP_NAME = tinyvpn_tcpdump
+CMD_START_OVS = service openvswitch-switch start
+CMD_START_MN = sudo mn --custom /projects/tinyvpn_topo.py --topo SimTopo
 
 build: docker-mininet docker-tcpdump
+	cd docker-mininet; docker build -t docker-mininet . 
+	cd docker-tcpdump; docker build -t docker-tcpdump .
 
 docker-mininet:
 	git clone https://github.com/jingqiuELE/docker-mininet.git
-	cd docker-mininet; docker build -t docker-mininet . 
 
 docker-tcpdump:
 	git clone https://github.com/jingqiuELE/docker-tcpdump.git
-	cd docker-tcpdump; docker build -t docker-tcpdump .
 
 run: clean
 	docker run --privileged -d -it --name $(MININET_NAME) docker-mininet 
+	docker cp tinyvpn_topo.py $(MININET_NAME):/projects/
+	docker exec $(MININET_NAME) $(CMD_START_OVS)
+	docker exec -d $(MININET_NAME) $(CMD_START_MN) 
 	docker run --rm --net=container:$(MININET_NAME) --name $(TCPDUMP_NAME) docker-tcpdump -i any --immediate-mode -w - | wireshark -k -i -
 
 clean:
