@@ -4,7 +4,7 @@ Code named petrel.
 
 Server Architecture
 -------------------
-![Architecture Diagram](TinyVPN.svg)
+![Architecture Diagram](TinyVPN.png)
 ### Logic Layers
 1. Authentication Service: 
     1. Exchange username and password for session key
