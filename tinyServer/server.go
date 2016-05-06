@@ -26,6 +26,9 @@ func CreateTinyServer(secret string, carrierProtocol string, serverAddr string, 
 	server.carrierProtocol = carrierProtocol
 	server.serverAddr = serverAddr
 	server.tunnel, err = CreateTunnel(vpnnet)
+	if err != nil {
+		fmt.Println("Error creating tun interface:", err)
+	}
 	return &server, err
 }
 
@@ -138,7 +141,7 @@ func (s *TinyServer) handleWanData(buf []byte) (err error) {
 func (s *TinyServer) handleTunnelData(buf []byte) error {
 	var err error
 	dst := waterutil.IPv4Destination(buf)
-	if client := s.clientRecord[dst.String()]; client != nil {
+	if client := s.clientMap[dst.String()]; client != nil {
 		_, err = client.Write(buf)
 		if err != nil {
 			fmt.Println("Failed to handle incomming tun data!")

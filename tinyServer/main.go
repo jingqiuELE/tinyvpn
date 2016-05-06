@@ -21,6 +21,11 @@ func main() {
 	tinyServer, err := CreateTinyServer(secret, carrierProtocol, serverAddr, vpnnet)
 	defer tinyServer.Close()
 
+	if err != nil {
+		fmt.Println("Error while creating TinyServer:", err)
+		return
+	}
+
 	err = tinyServer.Run()
 	if err != nil {
 		fmt.Println("Error running tinyServer.")
