@@ -28,7 +28,20 @@ type Session struct {
 
 type IpSessionMap struct {
 	ipToSession map[string]SessionKey
-	sessionToIP map[SessionKey]string
+	sessionToIp map[SessionKey]string
+}
+
+func (m *IpSessionMap) getSession(ip string) SessionKey {
+	return m.ipToSession[ip]
+}
+
+func (m *IpSessionMap) getIp(sessionKey SessionKey) string {
+	return m.sessionToIp[sessionKey]
+}
+
+func (m *IpSessionMap) Add(ip string, sessionKey SessionKey) {
+	m.ipToSession[ip] = sessionKey
+	m.sessionToIp[sessionKey] = ip
 }
 
 func main() {
