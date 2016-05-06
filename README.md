@@ -37,12 +37,12 @@ type Packet struct {
 ##### Session
 ````
 type Connection Interface {
-    readPacket() Packet
     writePacket(p Packet)
 }
 
 type Session struct {
-    c Connection
+    conn Connection
+    secret []byte
 }
 ````
 
