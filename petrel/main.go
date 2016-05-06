@@ -26,6 +26,11 @@ type Session struct {
 	secret []byte
 }
 
+type IpSessionMap struct {
+	ipToSession map[string]SessionKey
+	sessionToIP map[SessionKey]string
+}
+
 func main() {
 
 	const channelSize = 10
@@ -39,9 +44,8 @@ func main() {
 		encryptedInChan  = make(chan Packet, channelSize)
 		plainInChan      = make(chan Packet, channelSize)
 
-		sessionMap = make(map[SessionKey]Session)
-		//ipSessionKeyMap = make(map[string]SessionKey) // String as the IP key as IP is an slice, cannot be key
-		//sessionKeyIpMap = make(map[SessionKey]net.IP)
+		sessionMap   = make(map[SessionKey]Session)
+		ipSessionMap IpSessionMap
 	)
 
 	flag.IntVarP(&authPort, "auth", "a", 7282, "Port for the authentication service to listen to.")
@@ -84,8 +88,8 @@ func main() {
 	startPacketDecrypter(encryptedOutChan, plainOutChan, sessionMap)
 
 	startPacketEncrypter(encryptedInChan, plainInChan, sessionMap)
-	startTunPacketSink(plainOutChan, tun)
-	startTunListener(plainInChan, tun)
+	startTunPacketSink(plainOutChan, tun, ipSessionMap)
+	startTunListener(plainInChan, tun, ipSessionMap)
 }
 
 func startAuthenticationServer(serverAddr string, port int, sessionMap map[SessionKey]Session) (err error) {
@@ -142,12 +146,12 @@ func startPacketEncrypter(encryptedInChan, plainInChan chan Packet, sessionMap m
 	return
 }
 
-func startTunPacketSink(plainOutChan chan Packet, ifce water.Interface) (err error) {
+func startTunPacketSink(plainOutChan chan Packet, ifce water.Interface, ipSessionMap IpSessionMap) (err error) {
 
 	return
 }
 
-func startTunListener(plainInChan chan Packet, ifce water.Interface) (err error) {
+func startTunListener(plainInChan chan Packet, ifce water.Interface, ipSessionMap IpSessionMap) (err error) {
 
 	return
 }
