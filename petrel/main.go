@@ -10,6 +10,7 @@ import (
 )
 
 type SessionKey [6]byte
+
 type Packet struct {
 	iv         [8]byte
 	sessionKey SessionKey
@@ -50,7 +51,7 @@ func main() {
 	var (
 		tcpPort, udpPort, authPort int
 		serverAddr, netmask        string
-		tun                        water.Interface
+		tun                        *water.Interface
 
 		encryptedOutChan = make(chan Packet, channelSize)
 		plainOutChan     = make(chan Packet, channelSize)
@@ -70,7 +71,7 @@ func main() {
 
 	fmt.Printf("Values of the config are: Auth %v, TCP %v, UDP %v, ServerAddr %v, Netmask %v\n", authPort, tcpPort, udpPort, serverAddr, netmask)
 
-	tun, err := createTunInterface()
+	tun, err := water.NewTUN("")
 	if err != nil {
 		fmt.Printf("Error is %v\n", err)
 		return
@@ -98,9 +99,10 @@ func main() {
 	}
 
 	startPacketReturner(encryptedInChan, sessionMap)
-	startPacketDecrypter(encryptedOutChan, plainOutChan, sessionMap)
 
+	startPacketDecrypter(encryptedOutChan, plainOutChan, sessionMap)
 	startPacketEncrypter(encryptedInChan, plainInChan, sessionMap)
+
 	startTunPacketSink(plainOutChan, tun, ipSessionMap)
 	startTunListener(plainInChan, tun, ipSessionMap)
 }
@@ -111,10 +113,6 @@ func startAuthenticationServer(serverAddr string, port int, sessionMap map[Sessi
 		return
 	}
 	defer l.Close()
-	return
-}
-
-func createTunInterface() (ifce water.Interface, err error) {
 	return
 }
 
@@ -159,12 +157,23 @@ func startPacketEncrypter(encryptedInChan, plainInChan chan Packet, sessionMap m
 	return
 }
 
-func startTunPacketSink(plainOutChan chan Packet, ifce water.Interface, ipSessionMap IpSessionMap) (err error) {
+func startTunPacketSink(plainOutChan chan Packet, ifce *water.Interface, ipSessionMap IpSessionMap) (err error) {
 
 	return
 }
 
-func startTunListener(plainInChan chan Packet, ifce water.Interface, ipSessionMap IpSessionMap) (err error) {
-
+func startTunListener(plainInChan chan Packet, ifce *water.Interface, ipSessionMap IpSessionMap) {
+	const bufferSize = 65535
+	go func() {
+		for {
+			buffer := make([]byte, bufferSize)
+			_, err := ifce.Read(buffer)
+			if err != nil {
+				fmt.Println("Error reading from tunnel.")
+			}
+			// TODO: Create packet from buffer
+			//plainInChan <- buffer
+		}
+	}()
 	return
 }
