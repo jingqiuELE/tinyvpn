@@ -10,11 +10,16 @@ import (
 )
 
 type SessionKey [6]byte
+
+type PacketHeader struct {
+	Iv         [8]byte
+	SessionKey SessionKey
+	Length     uint16
+}
+
 type Packet struct {
-	iv         [8]byte
-	sessionKey SessionKey
-	length     uint16
-	data       []byte
+	Header PacketHeader
+	Data   []byte
 }
 
 type Connection interface {
@@ -115,32 +120,6 @@ func startAuthenticationServer(serverAddr string, port int, sessionMap map[Sessi
 }
 
 func createTunInterface() (ifce water.Interface, err error) {
-	return
-}
-
-// Listen to TCP socket and put the packets to the encrypted out chan.
-func startTCPListener(serverAddr string, port int, encryptedOutChan chan Packet, sessionMap map[SessionKey]Session) (err error) {
-	l, err := net.Listen("tcp", serverAddr+":"+strconv.Itoa(port))
-	if err != nil {
-		return
-	}
-	defer l.Close()
-	// TODO: Read the packets and put them into the encryptedOutChan.
-	return
-}
-
-// Listen to UDP socket and put the packets to the encrypted out chan.
-func startUDPListener(serverAddr string, port int, encryptedOutChan chan Packet, sessionMap map[SessionKey]Session) (err error) {
-	udpAddr, err := net.ResolveUDPAddr("udp", serverAddr+":"+strconv.Itoa(port))
-	if err != nil {
-		return
-	}
-	l, err := net.ListenUDP("udp", udpAddr)
-	if err != nil {
-		return
-	}
-	defer l.Close()
-	// TODO: Read the packets and put them into the encryptedOutChan.
 	return
 }
 
