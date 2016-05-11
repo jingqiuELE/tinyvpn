@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/songgao/water"
+	"github.com/songgao/water/waterutil"
 	flag "github.com/spf13/pflag"
 )
 
@@ -170,6 +171,24 @@ func startTunListener(plainInChan chan Packet, ifce *water.Interface, ipSessionM
 			_, err := ifce.Read(buffer)
 			if err != nil {
 				fmt.Println("Error reading from tunnel.")
+			}
+			var dest IP
+			if waterutil.IsIPv4(buffer) {
+				dest = waterutil.IPv4Source(buffer)
+			}
+			if waterutil.IsIPv6(buffer) {
+				// TODO: IPv6 support
+			}
+
+			if dest != nil {
+				destStr := dest.String()
+				sessionKey := ipSessionMap.getSession(destStr)
+				if sessionKey != nil {
+					p := Packet{
+						sessionKey: sessionKey,
+					}
+					plainInChan <- p
+				}
 			}
 			// TODO: Create packet from buffer
 			//plainInChan <- buffer
