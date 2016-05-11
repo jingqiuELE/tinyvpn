@@ -9,46 +9,6 @@ import (
 	flag "github.com/spf13/pflag"
 )
 
-type SessionKey [6]byte
-
-type PacketHeader struct {
-	Iv         [8]byte
-	SessionKey SessionKey
-	Length     uint16
-}
-
-type Packet struct {
-	Header PacketHeader
-	Data   []byte
-}
-
-type Connection interface {
-	writePacket(p Packet) error
-}
-
-type Session struct {
-	conn   Connection
-	secret []byte
-}
-
-type IpSessionMap struct {
-	ipToSession map[string]SessionKey
-	sessionToIp map[SessionKey]string
-}
-
-func (m *IpSessionMap) getSession(ip string) SessionKey {
-	return m.ipToSession[ip]
-}
-
-func (m *IpSessionMap) getIp(sessionKey SessionKey) string {
-	return m.sessionToIp[sessionKey]
-}
-
-func (m *IpSessionMap) Add(ip string, sessionKey SessionKey) {
-	m.ipToSession[ip] = sessionKey
-	m.sessionToIp[sessionKey] = ip
-}
-
 func main() {
 
 	const channelSize = 10
@@ -62,7 +22,7 @@ func main() {
 		encryptedInChan  = make(chan Packet, channelSize)
 		plainInChan      = make(chan Packet, channelSize)
 
-		sessionMap   = make(map[SessionKey]Session)
+		s            *SessionMap
 		ipSessionMap IpSessionMap
 	)
 
@@ -81,36 +41,38 @@ func main() {
 		return
 	}
 
-	err = startAuthenticationServer(serverAddr, authPort, sessionMap)
+	s = NewSessionMap()
+
+	err = startAuthenticationServer(serverAddr, authPort, s)
 	if err != nil {
 		fmt.Printf("Error is %v\n", err)
 		return
 	}
 
 	if tcpPort != 0 {
-		err = startTCPListener(serverAddr, tcpPort, encryptedOutChan, sessionMap)
+		err = startTCPListener(serverAddr, tcpPort, encryptedOutChan, s)
 		if err != nil {
 			fmt.Printf("Error is %v\n", err)
 			return
 		}
 	}
 	if udpPort != 0 {
-		startUDPListener(serverAddr, udpPort, encryptedOutChan, sessionMap)
+		startUDPListener(serverAddr, udpPort, encryptedOutChan, s)
 		if err != nil {
 			fmt.Printf("Error is %v\n", err)
 			return
 		}
 	}
 
-	startPacketReturner(encryptedInChan, sessionMap)
-	startPacketDecrypter(encryptedOutChan, plainOutChan, sessionMap)
+	startPacketReturner(encryptedInChan, s)
+	startPacketDecrypter(encryptedOutChan, plainOutChan, s)
 
-	startPacketEncrypter(encryptedInChan, plainInChan, sessionMap)
+	startPacketEncrypter(encryptedInChan, plainInChan, s)
 	startTunPacketSink(plainOutChan, tun, ipSessionMap)
 	startTunListener(plainInChan, tun, ipSessionMap)
 }
 
-func startAuthenticationServer(serverAddr string, port int, sessionMap map[SessionKey]Session) (err error) {
+func startAuthenticationServer(serverAddr string, port int, s *SessionMap) (err error) {
 	l, err := net.Listen("tcp", serverAddr+":"+strconv.Itoa(port))
 	if err != nil {
 		return
@@ -123,17 +85,17 @@ func createTunInterface() (ifce water.Interface, err error) {
 	return
 }
 
-func startPacketReturner(encryptedInChan chan Packet, sessionMap map[SessionKey]Session) (err error) {
+func startPacketReturner(encryptedInChan chan Packet, s *SessionMap) (err error) {
 
 	return
 }
 
-func startPacketDecrypter(encryptedOutChan, plainOutChan chan Packet, sessionMap map[SessionKey]Session) (err error) {
+func startPacketDecrypter(encryptedOutChan, plainOutChan chan Packet, s *SessionMap) (err error) {
 
 	return
 }
 
-func startPacketEncrypter(encryptedInChan, plainInChan chan Packet, sessionMap map[SessionKey]Session) (err error) {
+func startPacketEncrypter(encryptedInChan, plainInChan chan Packet, s *SessionMap) (err error) {
 
 	return
 }

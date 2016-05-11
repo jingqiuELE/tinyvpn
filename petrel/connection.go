@@ -1,45 +1,64 @@
 package main
 
 import (
+	"bufio"
 	"encoding/binary"
 	"fmt"
-	"github.com/songgao/water/waterutil"
 	"net"
 	"strconv"
-	"strings"
 )
 
-func StartUDPListener(serverIP string, port int, c chan Packet,
-	sessionMap map[SessionKey]Session) error {
+type UConnection net.UDPAddr
+type TConnection net.TCPConn
+
+type Connection interface {
+	writePacket(p Packet) error
+}
+
+var ProxyConn *net.UDPConn
+
+func (u UConnection) writePacket(p Packet) (err error) {
+	addr := net.UDPAddr(u)
+	_, err = ProxyConn.WriteToUDP(p.Data, &addr)
+	return
+}
+
+func (t TConnection) writePacket(p Packet) (err error) {
+	conn := net.TCPConn(t)
+	_, err = conn.Write(p.Data)
+	return
+}
+
+func startUDPListener(serverIP string, port int, c chan Packet,
+	s *SessionMap) (err error) {
 	serverAddr := serverIP + ":" + strconv.Itoa(port)
 	listenAddr, err := net.ResolveUDPAddr("udp", serverAddr)
 	if err != nil {
 		fmt.Println("Error when resoving UDP Address!")
-		return err
+		return
 	}
 
-	conn, err := net.ListenUDP("udp", listenAddr)
+	pudp, err := net.ListenUDP("udp", listenAddr)
 	if err != nil {
 		fmt.Println("Error when listening to UDP Address!")
-		return err
+		return
 	}
-	defer conn.Close()
 
-	var p Parket
+	ProxyConn = pudp
+	defer pudp.Close()
+
 	for {
-		p, err := readPacketFromUDP(conn)
+		p, err := readPacketFromUDP(pudp, s)
 		if err != nil {
-			fmt.Println("Error:reading from ", err, addr)
-		} else {
-			updateIpSessionMap(addr, pHeader.sessionKey)
-			c <- p
+			return err
 		}
+		c <- p
 	}
-	return err
+	return
 }
 
-func StartTCPListener(serverIP string, port int, c chan Packet,
-	sessionMap map[SessionKey]Session) error {
+func startTCPListener(serverIP string, port int, c chan Packet,
+	s *SessionMap) error {
 	serverAddr := serverIP + ":" + strconv.Itoa(port)
 	listenAddr, err := net.ResolveTCPAddr("tcp", serverAddr)
 	if err != nil {
@@ -59,18 +78,19 @@ func StartTCPListener(serverIP string, port int, c chan Packet,
 		if err != nil {
 			fmt.Println("Error: ", err)
 		} else {
-			go handleTCPConn(conn, c)
+			go handleTCPConn(conn, c, s)
 		}
 	}
 	return err
 }
 
-func handleTCPConn(conn *net.TCPConn, c chan []byte) {
+func handleTCPConn(conn *net.TCPConn, c chan Packet, s *SessionMap) {
 	p, err := readPacketFromTCP(conn)
 	if err != nil {
 		fmt.Println("Error:reading ", err)
 	} else {
-		updateIpSessionMap(addr, p.sessionKey)
+		var t TConnection = TConnection(*conn)
+		s.Update(t, p.Header.sessionKey)
 		c <- p
 	}
 }
@@ -78,32 +98,36 @@ func handleTCPConn(conn *net.TCPConn, c chan []byte) {
 const packetHeaderLen = 16
 
 /* readPacket would assume the buf always starts with beginning of a Packet. */
-func readPacketFromTCP(conn *net.TCPConn, buf []byte) (p Packet, err error) {
-	var p Packet
+func readPacketFromTCP(conn *net.TCPConn) (p Packet, err error) {
 	reader := bufio.NewReader(conn)
-	err := binary.Read(reader, binary.BigEndian, &p.Header)
+	err = binary.Read(reader, binary.BigEndian, &p.Header)
 	if err != nil {
 		fmt.Println("binary read Packet Header failed:", err)
 	}
-	p.data = make([]byte, p.Header.length)
-	err := binary.Read(data, binary.BigEndian, &p.Data)
+	p.Data = make([]byte, p.Header.Length)
+	err = binary.Read(reader, binary.BigEndian, &p.Data)
 	if err != nil {
 		fmt.Println("binary read Packet Data failed:", err)
 	}
 	return p, err
 }
 
-func readPacketFromUDP(conn *net.UDPConn) (p Packet, addr *net.UDPAddr, err error) {
-	var p Packet
+const BUFFERSIZE = 1500
+
+func readPacketFromUDP(u *net.UDPConn, s *SessionMap) (p Packet, err error) {
 	buf := make([]byte, BUFFERSIZE)
-	len, addr, err := conn.ReadFromUDP(buf)
+	_, cliaddr, err := u.ReadFromUDP(buf)
 	if err != nil {
-		fmt.Println("Error:reading from ", err, addr)
-	} else {
-		data := bytes.NewBuffer(buf[0:len])
-		binary.Read(data, binary.BigEndian, &p.Header)
-		p.data = make([]byte, p.Header.length)
-		binary.Read(data, binary.BigEndian, &p.Data)
+		fmt.Println("Error:reading from ", err, cliaddr.String())
+		return
 	}
-	return p, addr, err
+	p, err = NewPacket(buf)
+	if err != nil {
+		fmt.Println("Error creating Packet from buffer!")
+		return
+	}
+
+	c := UConnection(*cliaddr)
+	s.Update(c, p.Header.sessionKey)
+	return p, err
 }
