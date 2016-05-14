@@ -8,8 +8,13 @@ import (
 	"strconv"
 )
 
-type UConnection net.UDPAddr
-type TConnection net.TCPConn
+type UConnection struct {
+	UDPAddr *net.UDPAddr
+}
+
+type TConnection struct {
+	TCPConn *net.TCPConn
+}
 
 type Connection interface {
 	writePacket(p Packet) error
@@ -18,13 +23,12 @@ type Connection interface {
 var ProxyConn *net.UDPConn
 
 func (u UConnection) writePacket(p Packet) (err error) {
-	addr := net.UDPAddr(u)
-	_, err = ProxyConn.WriteToUDP(p.Data, &addr)
+	_, err = ProxyConn.WriteToUDP(p.Data, u.UDPAddr)
 	return
 }
 
 func (t TConnection) writePacket(p Packet) (err error) {
-	conn := net.TCPConn(t)
+	conn := t.TCPConn
 	_, err = conn.Write(p.Data)
 	return
 }
@@ -89,8 +93,9 @@ func handleTCPConn(conn *net.TCPConn, c chan Packet, s *SessionMap) {
 	if err != nil {
 		fmt.Println("Error:reading ", err)
 	} else {
-		var t TConnection = TConnection(*conn)
-		s.Update(t, p.Header.sessionKey)
+		t := new(TConnection)
+		t.TCPConn = conn
+		s.Update(p.Header.sessionKey, t)
 		c <- p
 	}
 }
@@ -127,7 +132,8 @@ func readPacketFromUDP(u *net.UDPConn, s *SessionMap) (p Packet, err error) {
 		return
 	}
 
-	c := UConnection(*cliaddr)
-	s.Update(c, p.Header.sessionKey)
+	c := new(UConnection)
+	c.UDPAddr = cliaddr
+	s.Update(p.Header.sessionKey, c)
 	return p, err
 }

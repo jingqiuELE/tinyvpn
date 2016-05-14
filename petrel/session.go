@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/rand"
 	"fmt"
 )
 
@@ -40,10 +41,20 @@ func NewSessionMap() (s *SessionMap) {
 	return s
 }
 
-func (m *SessionMap) Update(conn Connection, k SessionKey) {
+func (m *SessionMap) Update(k SessionKey, conn Connection) {
 	session, ok := m.Map[k]
 	if ok == true {
 		session.conn = conn
 		fmt.Println("Created New connection for connection")
 	}
+}
+
+func NewSessionKey() (m *SessionKey, err error) {
+	m = new(SessionKey)
+	_, err = rand.Read(m[:])
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+	return
 }

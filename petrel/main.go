@@ -2,8 +2,6 @@ package main
 
 import (
 	"fmt"
-	"net"
-	"strconv"
 
 	"github.com/songgao/water"
 	flag "github.com/spf13/pflag"
@@ -71,15 +69,6 @@ func main() {
 
 	startTunPacketSink(plainOutChan, tun, ipSessionMap)
 	startTunListener(plainInChan, tun, ipSessionMap)
-}
-
-func startAuthenticationServer(serverAddr string, port int, s *SessionMap) (err error) {
-	l, err := net.Listen("tcp", serverAddr+":"+strconv.Itoa(port))
-	if err != nil {
-		return
-	}
-	defer l.Close()
-	return
 }
 
 func startPacketReturner(encryptedInChan chan Packet, s *SessionMap) (err error) {
