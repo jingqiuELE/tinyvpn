@@ -61,7 +61,7 @@ needs to be find.
 ### Testing
 
 ##### Goal
-  The test would run **myvpn** in a simulated network created with mininet running in Docker container. The purpose of this approach is to test the program in a sandbox, changable networking environment.
+  The test would run **petrel** in a simulated network created with mininet running in Docker container. The purpose of this approach is to test the program in a sandbox, changable networking environment.
   The topology of the network is:
  
   
@@ -89,7 +89,7 @@ needs to be find.
   In the test directory, please follow below steps:
   * $make build
   * $make run    
-  * You should be able to see both wireshark and a mininet console. In the mininet console, run below commands to start **myvpn**:
+  * You should be able to see both wireshark and a mininet console. In the mininet console, run below commands to start **petrel**:
     * mininet>server ./tinyvpn/server-start.sh
     * mininet>client ./tinyvpn/client-start.sh
     * You should be able to observe the connection established.
