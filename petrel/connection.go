@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"net"
+	"packet"
 	"strconv"
 )
 
@@ -17,23 +18,23 @@ type TConnection struct {
 }
 
 type Connection interface {
-	writePacket(p Packet) error
+	writePacket(p packet.Packet) error
 }
 
 var ProxyConn *net.UDPConn
 
-func (u UConnection) writePacket(p Packet) (err error) {
+func (u UConnection) writePacket(p packet.Packet) (err error) {
 	_, err = ProxyConn.WriteToUDP(p.Data, u.UDPAddr)
 	return
 }
 
-func (t TConnection) writePacket(p Packet) (err error) {
+func (t TConnection) writePacket(p packet.Packet) (err error) {
 	conn := t.TCPConn
 	_, err = conn.Write(p.Data)
 	return
 }
 
-func startUDPListener(serverIP string, port int, c chan Packet,
+func startUDPListener(serverIP string, port int, c chan packet.Packet,
 	s *SessionMap) (err error) {
 	serverAddr := serverIP + ":" + strconv.Itoa(port)
 	listenAddr, err := net.ResolveUDPAddr("udp", serverAddr)
@@ -61,7 +62,7 @@ func startUDPListener(serverIP string, port int, c chan Packet,
 	return
 }
 
-func startTCPListener(serverIP string, port int, c chan Packet,
+func startTCPListener(serverIP string, port int, c chan packet.Packet,
 	s *SessionMap) error {
 	serverAddr := serverIP + ":" + strconv.Itoa(port)
 	listenAddr, err := net.ResolveTCPAddr("tcp", serverAddr)
@@ -88,14 +89,14 @@ func startTCPListener(serverIP string, port int, c chan Packet,
 	return err
 }
 
-func handleTCPConn(conn *net.TCPConn, c chan Packet, s *SessionMap) {
+func handleTCPConn(conn *net.TCPConn, c chan packet.Packet, s *SessionMap) {
 	p, err := readPacketFromTCP(conn)
 	if err != nil {
 		fmt.Println("Error:reading ", err)
 	} else {
 		t := new(TConnection)
 		t.TCPConn = conn
-		s.Update(p.Header.sessionKey, t)
+		s.Update(p.Header.Sk, t)
 		c <- p
 	}
 }
@@ -103,7 +104,7 @@ func handleTCPConn(conn *net.TCPConn, c chan Packet, s *SessionMap) {
 const packetHeaderLen = 16
 
 /* readPacket would assume the buf always starts with beginning of a Packet. */
-func readPacketFromTCP(conn *net.TCPConn) (p Packet, err error) {
+func readPacketFromTCP(conn *net.TCPConn) (p packet.Packet, err error) {
 	reader := bufio.NewReader(conn)
 	err = binary.Read(reader, binary.BigEndian, &p.Header)
 	if err != nil {
@@ -119,14 +120,14 @@ func readPacketFromTCP(conn *net.TCPConn) (p Packet, err error) {
 
 const BUFFERSIZE = 1500
 
-func readPacketFromUDP(u *net.UDPConn, s *SessionMap) (p Packet, err error) {
+func readPacketFromUDP(u *net.UDPConn, s *SessionMap) (p packet.Packet, err error) {
 	buf := make([]byte, BUFFERSIZE)
 	_, cliaddr, err := u.ReadFromUDP(buf)
 	if err != nil {
 		fmt.Println("Error:reading from ", err, cliaddr.String())
 		return
 	}
-	p, err = NewPacket(buf)
+	p, err = packet.Unmarshal(buf)
 	if err != nil {
 		fmt.Println("Error creating Packet from buffer!")
 		return
@@ -134,6 +135,6 @@ func readPacketFromUDP(u *net.UDPConn, s *SessionMap) (p Packet, err error) {
 
 	c := new(UConnection)
 	c.UDPAddr = cliaddr
-	s.Update(p.Header.sessionKey, c)
+	s.Update(p.Header.Sk, c)
 	return p, err
 }

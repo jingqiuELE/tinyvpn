@@ -42,8 +42,7 @@ func handleAuthConn(conn *net.TCPConn, s *SessionMap) {
 		return
 	}
 	s.Update(*sk, TConnection{})
-	buf = sk[:]
-	_, err = conn.Write(buf)
+	_, err = conn.Write(sk[:])
 	if err != nil {
 		fmt.Println("Failed to write SessionKey:", err)
 		return

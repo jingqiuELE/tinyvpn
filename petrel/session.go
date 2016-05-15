@@ -5,11 +5,21 @@ import (
 	"fmt"
 )
 
-type SessionKey [6]byte
-
 type Session struct {
 	conn   Connection
 	secret []byte
+}
+
+type SessionKey [6]byte
+
+func NewSessionKey() (m *SessionKey, err error) {
+	m = new(SessionKey)
+	_, err = rand.Read(m[:])
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+	return
 }
 
 type SessionMap struct {
@@ -47,14 +57,4 @@ func (m *SessionMap) Update(k SessionKey, conn Connection) {
 		session.conn = conn
 		fmt.Println("Created New connection for connection")
 	}
-}
-
-func NewSessionKey() (m *SessionKey, err error) {
-	m = new(SessionKey)
-	_, err = rand.Read(m[:])
-	if err != nil {
-		fmt.Println("Error:", err)
-		return
-	}
-	return
 }
