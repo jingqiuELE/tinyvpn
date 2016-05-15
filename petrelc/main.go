@@ -11,11 +11,15 @@ import (
 )
 
 func main() {
-	var carrierProtocol, authServer, connServer string
+	var (
+		tcpPort, udpPort, authPort int
+		serverAddr                 string
+	)
 
-	flag.StringVarP(&carrierProtocol, "carrierProtocol", "p", "udp", "protocol for the underlying layer of tiny vpn.")
-	flag.StringVarP(&authServer, "authServer", "a", "0.0.0.0:7282", "authServer's address")
-	flag.StringVarP(&connServer, "connServer", "c", "0.0.0.0:8272", "connServer's address")
+	flag.StringVarP(&serverAddr, "serverAddr", "s", "0.0.0.0", "IP address of the server")
+	flag.IntVarP(&authPort, "auth", "a", 7282, "Port for the authentication service.")
+	flag.IntVarP(&tcpPort, "tcp", "t", 8272, "TCP port of connServer")
+	flag.IntVarP(&udpPort, "udp", "u", 8272, "UDP port of connServer")
 	flag.Parse()
 
 	go func() {
@@ -26,7 +30,7 @@ func main() {
 		fmt.Println("Received signal", errors.New(s.String()))
 	}()
 
-	sk, err := getSession(authServer)
+	sk, err := getSession(serverAddr, authPort)
 
 	if err != nil {
 		fmt.Println("Failed to auth myself:", err)
@@ -39,7 +43,7 @@ func main() {
 		return
 	}
 
-	startConnection(connServer, sk, tun)
+	startUDPConnection(serverAddr, udpPort, sk, tun)
 
 	fmt.Println("process quit")
 

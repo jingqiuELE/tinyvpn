@@ -5,9 +5,11 @@ import (
 	"github.com/songgao/water"
 	"net"
 	"packet"
+	"strconv"
 )
 
-func startConnection(connServer string, sk [6]byte, tun *water.Interface) (err error) {
+func startUDPConnection(serverAddr string, port int, sk [6]byte, tun *water.Interface) (err error) {
+	connServer := serverAddr + ":" + strconv.Itoa(port)
 	raddr, err := net.ResolveUDPAddr("udp", connServer)
 	if err != nil {
 		fmt.Println("Error resolving connServer:", err)

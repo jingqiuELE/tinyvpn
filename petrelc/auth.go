@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strconv"
 )
 
-func getSession(authServer string) (sk [6]byte, err error) {
+func getSession(serverAddr string, port int) (sk [6]byte, err error) {
+	authServer := serverAddr + ":" + strconv.Itoa(port)
 	raddr, err := net.ResolveTCPAddr("tcp", authServer)
 	if err != nil {
 		fmt.Println("Error when resolving authServer:", err)
