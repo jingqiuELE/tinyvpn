@@ -4,10 +4,8 @@ CMD_START_OVS = service openvswitch-switch start
 CMD_START_MN = sudo mn --custom /projects/tinyvpn_topo.py --topo SimTopo
 
 GO_BIN = ~/Projects/golang/bin
-SERVER = $(GO_BIN)/myvpn-server
-CLIENT = $(GO_BIN)/myvpn-client
-SCRIPT_UP = $(GO_BIN)/if-up.sh
-SCRIPT_DOWN = $(GO_BIN)/if-down.sh
+SERVER = ../petrel/petrel
+CLIENT = ../petrelc/petrelc
 SERVER_START = ./server-start.sh
 CLIENT_START = ./client-start.sh
 
@@ -25,14 +23,12 @@ run: clean start_container
 	docker exec $(MININET_NAME) mkdir /projects/tinyvpn
 	docker cp $(SERVER) $(MININET_NAME):/projects/tinyvpn/
 	docker cp $(CLIENT) $(MININET_NAME):/projects/tinyvpn/
-	docker cp $(SCRIPT_UP) $(MININET_NAME):/projects/tinyvpn/
-	docker cp $(SCRIPT_DOWN) $(MININET_NAME):/projects/tinyvpn/
 	docker cp $(SERVER_START) $(MININET_NAME):/projects/tinyvpn/
 	docker cp $(CLIENT_START) $(MININET_NAME):/projects/tinyvpn/
 	docker exec -it $(MININET_NAME) $(CMD_START_MN) 
 
 start_container:
-	docker run --privileged -d -it --name $(MININET_NAME) docker-mininet 
+	docker run --privileged --cap-add=ALL -v /lib/modules:/lib/modules -d -it --name $(MININET_NAME) docker-mininet 
 	docker cp tinyvpn_topo.py $(MININET_NAME):/projects/
 	docker exec $(MININET_NAME) $(CMD_START_OVS)
 	docker run --rm --net=container:$(MININET_NAME) --name $(TCPDUMP_NAME) docker-tcpdump -i any --immediate-mode -w - | wireshark -k -i - &

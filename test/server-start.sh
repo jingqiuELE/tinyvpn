@@ -1,4 +1,4 @@
 #!/bin/bash
 cd /projects/tinyvpn
-./myvpn-server -secret milk -logtostderr -v 3 -up-script ./if-up.sh &
+./petrel -s 10.0.3.100 &
 iptables -t nat -A POSTROUTING -o server-eth0 -j MASQUERADE
