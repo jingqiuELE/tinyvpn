@@ -111,7 +111,7 @@ func startTunListener(plainInChan chan Packet, ifce *water.Interface, ipSessionM
 			if err != nil {
 				fmt.Println("Error reading from tunnel.")
 			}
-			var dest IP
+			var dest net.IP
 			if waterutil.IsIPv4(buffer) {
 				dest = waterutil.IPv4Source(buffer)
 			}
