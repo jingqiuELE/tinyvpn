@@ -1,14 +1,25 @@
 package main
 
 import (
+	"crypto/rand"
 	"fmt"
 )
-
-type SessionKey [6]byte
 
 type Session struct {
 	conn   Connection
 	secret []byte
+}
+
+type SessionKey [6]byte
+
+func NewSessionKey() (m *SessionKey, err error) {
+	m = new(SessionKey)
+	_, err = rand.Read(m[:])
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+	return
 }
 
 type SessionMap struct {
@@ -40,7 +51,7 @@ func NewSessionMap() (s *SessionMap) {
 	return s
 }
 
-func (m *SessionMap) Update(conn Connection, k SessionKey) {
+func (m *SessionMap) Update(k SessionKey, conn Connection) {
 	session, ok := m.Map[k]
 	if ok == true {
 		session.conn = conn

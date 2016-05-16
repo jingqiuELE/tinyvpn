@@ -2,12 +2,10 @@ package main
 
 import (
 	"fmt"
-	"net"
-	"strconv"
-
 	"github.com/songgao/water"
 	"github.com/songgao/water/waterutil"
 	flag "github.com/spf13/pflag"
+	"packet"
 )
 
 func main() {
@@ -18,10 +16,10 @@ func main() {
 		serverAddr, netmask        string
 		tun                        *water.Interface
 
-		encryptedOutChan = make(chan Packet, channelSize)
-		plainOutChan     = make(chan Packet, channelSize)
-		encryptedInChan  = make(chan Packet, channelSize)
-		plainInChan      = make(chan Packet, channelSize)
+		encryptedOutChan = make(chan packet.Packet, channelSize)
+		plainOutChan     = make(chan packet.Packet, channelSize)
+		encryptedInChan  = make(chan packet.Packet, channelSize)
+		plainInChan      = make(chan packet.Packet, channelSize)
 
 		s            *SessionMap
 		ipSessionMap IpSessionMap
@@ -74,35 +72,26 @@ func main() {
 	startTunListener(plainInChan, tun, ipSessionMap)
 }
 
-func startAuthenticationServer(serverAddr string, port int, s *SessionMap) (err error) {
-	l, err := net.Listen("tcp", serverAddr+":"+strconv.Itoa(port))
-	if err != nil {
-		return
-	}
-	defer l.Close()
+func startPacketReturner(encryptedInChan chan packet.Packet, s *SessionMap) (err error) {
 	return
 }
 
-func startPacketReturner(encryptedInChan chan Packet, s *SessionMap) (err error) {
-	return
-}
-
-func startPacketDecrypter(encryptedOutChan, plainOutChan chan Packet, s *SessionMap) (err error) {
+func startPacketDecrypter(encryptedOutChan, plainOutChan chan packet.Packet, s *SessionMap) (err error) {
 
 	return
 }
 
-func startPacketEncrypter(encryptedInChan, plainInChan chan Packet, s *SessionMap) (err error) {
+func startPacketEncrypter(encryptedInChan, plainInChan chan packet.Packet, s *SessionMap) (err error) {
 
 	return
 }
 
-func startTunPacketSink(plainOutChan chan Packet, ifce *water.Interface, ipSessionMap IpSessionMap) (err error) {
+func startTunPacketSink(plainOutChan chan packet.Packet, ifce *water.Interface, ipSessionMap IpSessionMap) (err error) {
 
 	return
 }
 
-func startTunListener(plainInChan chan Packet, ifce *water.Interface, ipSessionMap IpSessionMap) {
+func startTunListener(plainInChan chan packet.Packet, ifce *water.Interface, ipSessionMap IpSessionMap) {
 	const bufferSize = 65535
 	go func() {
 		for {
