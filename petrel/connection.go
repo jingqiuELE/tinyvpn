@@ -9,6 +9,12 @@ import (
 	"strconv"
 )
 
+type ConnServer struct {
+	connMap map[SessionKey]Connection
+	out     chan packet.Packet
+	in      chan packet.Packet
+}
+
 type UConnection struct {
 	UDPAddr *net.UDPAddr
 }
@@ -34,36 +40,57 @@ func (t TConnection) writePacket(p packet.Packet) (err error) {
 	return
 }
 
-func startUDPListener(serverIP string, port int, c chan packet.Packet,
-	s *SessionMap) (err error) {
+func newConnServer(serverIP string, tcpPort int, udpPort int,
+	out chan packet.Packet, in chan packet.Packet) (*ConnServer, error) {
+	c := new(ConnServer)
+	c.connMap = make(map[SessionKey]Connection)
+	c.out = out
+	c.in = in
+	if tcpPort != 0 {
+		err := c.startTCPListener(serverIP, tcpPort)
+		if err != nil {
+			fmt.Printf("Error is %v\n", err)
+			return c, err
+		}
+	}
+	if udpPort != 0 {
+		err := c.startUDPListener(serverIP, udpPort)
+		if err != nil {
+			fmt.Printf("Error is %v\n", err)
+			return c, err
+		}
+	}
+	return c, nil
+}
+
+func (c *ConnServer) startUDPListener(serverIP string, port int) error {
 	serverAddr := serverIP + ":" + strconv.Itoa(port)
 	listenAddr, err := net.ResolveUDPAddr("udp", serverAddr)
 	if err != nil {
 		fmt.Println("Error when resoving UDP Address!")
-		return
+		return err
 	}
 
 	pudp, err := net.ListenUDP("udp", listenAddr)
 	if err != nil {
 		fmt.Println("Error when listening to UDP Address!")
-		return
+		return err
 	}
 
 	ProxyConn = pudp
 	defer pudp.Close()
 
 	for {
-		p, err := readPacketFromUDP(pudp, s)
+		p, err := c.readPacketFromUDP(pudp)
 		if err != nil {
 			return err
 		}
-		c <- p
+		c.in <- p
 	}
-	return
+	return err
 }
 
-func startTCPListener(serverIP string, port int, c chan packet.Packet,
-	s *SessionMap) error {
+func (c *ConnServer) startTCPListener(serverIP string, port int) error {
 	serverAddr := serverIP + ":" + strconv.Itoa(port)
 	listenAddr, err := net.ResolveTCPAddr("tcp", serverAddr)
 	if err != nil {
@@ -82,23 +109,24 @@ func startTCPListener(serverIP string, port int, c chan packet.Packet,
 		conn, err := ln.AcceptTCP()
 		if err != nil {
 			fmt.Println("Error: ", err)
-		} else {
-			go handleTCPConn(conn, c, s)
+			return err
 		}
+		go c.handleTCPConn(conn)
 	}
 	return err
 }
 
-func handleTCPConn(conn *net.TCPConn, c chan packet.Packet, s *SessionMap) {
+func (c *ConnServer) handleTCPConn(conn *net.TCPConn) error {
 	p, err := readPacketFromTCP(conn)
 	if err != nil {
 		fmt.Println("Error:reading ", err)
-	} else {
-		t := new(TConnection)
-		t.TCPConn = conn
-		s.Update(p.Header.Sk, t)
-		c <- p
+		return err
 	}
+	t := new(TConnection)
+	t.TCPConn = conn
+	c.connMap[p.Header.Sk] = t
+	c.in <- p
+	return err
 }
 
 const packetHeaderLen = 16
@@ -120,7 +148,7 @@ func readPacketFromTCP(conn *net.TCPConn) (p packet.Packet, err error) {
 
 const BUFFERSIZE = 1500
 
-func readPacketFromUDP(u *net.UDPConn, s *SessionMap) (p packet.Packet, err error) {
+func (c *ConnServer) readPacketFromUDP(u *net.UDPConn) (p packet.Packet, err error) {
 	buf := make([]byte, BUFFERSIZE)
 	_, cliaddr, err := u.ReadFromUDP(buf)
 	if err != nil {
@@ -133,8 +161,8 @@ func readPacketFromUDP(u *net.UDPConn, s *SessionMap) (p packet.Packet, err erro
 		return
 	}
 
-	c := new(UConnection)
-	c.UDPAddr = cliaddr
-	s.Update(p.Header.Sk, c)
+	uc := new(UConnection)
+	uc.UDPAddr = cliaddr
+	c.connMap[p.Header.Sk] = uc
 	return p, err
 }
