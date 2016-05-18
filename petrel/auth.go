@@ -3,16 +3,17 @@ package main
 import (
 	"fmt"
 	"net"
+	"session"
 	"strconv"
 )
 
 type AuthServer struct {
-	secretMap map[SessionKey]Secret
+	secretMap map[session.SessionKey]session.Secret
 }
 
 func newAuthServer(serverIP string, port int) (*AuthServer, error) {
 	a := new(AuthServer)
-	a.secretMap = make(map[SessionKey]Secret)
+	a.secretMap = make(map[session.SessionKey]session.Secret)
 
 	serverAddr := serverIP + ":" + strconv.Itoa(port)
 	listenAddr, err := net.ResolveTCPAddr("tcp", serverAddr)
@@ -46,7 +47,7 @@ func (a *AuthServer) handleAuthConn(conn *net.TCPConn) error {
 		return err
 	}
 
-	sk, err := NewSessionKey()
+	sk, err := session.NewSessionKey()
 	if err != nil {
 		fmt.Println("Failed to create new SessionKey:", err)
 		return err

@@ -30,7 +30,7 @@ func main() {
 		fmt.Println("Received signal", errors.New(s.String()))
 	}()
 
-	sk, err := getSession(serverAddr, authPort)
+	sk, err := authGetSession(serverAddr, authPort)
 
 	if err != nil {
 		fmt.Println("Failed to auth myself:", err)

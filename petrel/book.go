@@ -6,12 +6,13 @@ import (
 	"github.com/songgao/water"
 	"github.com/songgao/water/waterutil"
 	"packet"
+	"session"
 	"tunnel"
 )
 
 type Book struct {
-	ipToSession map[string]SessionKey
-	sessionToIp map[SessionKey]string
+	ipToSession map[string]session.SessionKey
+	sessionToIp map[session.SessionKey]string
 }
 
 type BookServer struct {
@@ -78,19 +79,19 @@ func (bs *BookServer) listenTun() error {
 
 func newBook() *Book {
 	b := new(Book)
-	b.ipToSession = make(map[string]SessionKey)
-	b.sessionToIp = make(map[SessionKey]string)
+	b.ipToSession = make(map[string]session.SessionKey)
+	b.sessionToIp = make(map[session.SessionKey]string)
 	return b
 }
-func (b *Book) getSession(ip string) SessionKey {
+func (b *Book) getSession(ip string) session.SessionKey {
 	return b.ipToSession[ip]
 }
 
-func (b *Book) getIp(sessionKey SessionKey) string {
+func (b *Book) getIp(sessionKey session.SessionKey) string {
 	return b.sessionToIp[sessionKey]
 }
 
-func (b *Book) Add(ip string, sessionKey SessionKey) {
+func (b *Book) Add(ip string, sessionKey session.SessionKey) {
 	b.ipToSession[ip] = sessionKey
 	b.sessionToIp[sessionKey] = ip
 }
