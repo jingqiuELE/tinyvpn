@@ -40,7 +40,12 @@ func newBookServer(pOut, pIn chan packet.Packet, vpnnet string) (*BookServer, er
 }
 
 func (bs *BookServer) start() {
-	err := tunnel.Bringup(bs.tun, bs.vpnnet)
+	err := tunnel.AddAddr(bs.tun, bs.vpnnet)
+	if err != nil {
+		return
+	}
+
+	err = tunnel.Bringup(bs.tun)
 	if err != nil {
 		return
 	}
