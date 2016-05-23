@@ -4,37 +4,44 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"session"
 	"strconv"
 )
 
-func authGetSession(serverAddr string, port int) (sk [6]byte, err error) {
+const BUFFERSIZE = 1500
+
+func authGetSession(serverAddr string, port int) (session.SessionKey, error) {
+	var sk session.SessionKey
 	authServer := serverAddr + ":" + strconv.Itoa(port)
 	raddr, err := net.ResolveTCPAddr("tcp", authServer)
 	if err != nil {
 		fmt.Println("Error when resolving authServer:", err)
-		return
+		return sk, err
 	}
 
 	conn, err := net.DialTCP("tcp", nil, raddr)
 	if err != nil {
 		fmt.Println("Dail error:", err)
-		return
+		return sk, err
 	}
 	defer conn.Close()
 
-	buf := []byte("Hello from client")
-	_, err = conn.Write(buf)
+	secret := []byte("Hello world")
+	_, err = conn.Write(secret)
 	if err != nil {
 		fmt.Println("Error writing:", err)
-		return
+		return sk, err
 	}
 
-	_, err = conn.Read(sk[:])
+	buf := make([]byte, BUFFERSIZE)
+	_, err = conn.Read(buf)
 	if err != nil {
 		fmt.Println("Read error:", err)
 		if err != io.EOF {
-			return
+			return sk, err
 		}
 	}
-	return
+
+	copy(sk[:], buf[:6])
+	return sk, err
 }

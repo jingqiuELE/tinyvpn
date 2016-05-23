@@ -2,56 +2,67 @@ package main
 
 import (
 	"fmt"
-	"github.com/songgao/water"
 	"net"
 	"packet"
 	"strconv"
 )
 
-func startUDPConnection(serverAddr string, port int, sk [6]byte, tun *water.Interface) (err error) {
+func startConnection(serverAddr string, port int, eOut, eIn chan packet.Packet) error {
 	connServer := serverAddr + ":" + strconv.Itoa(port)
 	raddr, err := net.ResolveUDPAddr("udp", connServer)
 	if err != nil {
 		fmt.Println("Error resolving connServer:", err)
-		return
+		return err
 	}
+
 	laddr, err := net.ResolveUDPAddr("udp", "127.0.0.1:0")
 	if err != nil {
 		fmt.Println("Error resolving localaddr:", err)
-		return
+		return err
 	}
 
 	conn, err := net.DialUDP("udp", laddr, raddr)
 	if err != nil {
 		fmt.Println("Error dail remote:", err)
-		return
+		return err
 	}
 	defer conn.Close()
 
-	c := make(chan []byte)
-	go startListenTun(tun, c)
-	for {
-		data := <-c
-		p := packet.NewPacket(data)
-		p.Header.Sk = sk
-		buf, err := packet.Marshal(p)
-		if err != nil {
-			fmt.Println("Failed to unmarshal the Packet:", err)
-			continue
-		}
-		conn.Write(buf)
-	}
-	return
+	go handleOut(conn, eOut)
+	go handleIn(conn, eIn)
+
+	return err
 }
 
-func startListenTun(tun *water.Interface, c chan []byte) (err error) {
-	buffer := make([]byte, 1500)
+func handleOut(conn *net.UDPConn, eOut chan packet.Packet) {
 	for {
-		_, err = tun.Read(buffer)
+		p := <-eOut
+		buf, err := packet.Marshal(&p)
 		if err != nil {
-			fmt.Println("Error reading from tunnel:", err)
-			return
+			fmt.Println("Error marshalling packet:", err)
+			continue
 		}
-		c <- buffer
+		_, err = conn.Write(buf)
+		if err != nil {
+			fmt.Println("Error writing to Connection:", err)
+		}
+	}
+}
+
+func handleIn(conn *net.UDPConn, eIn chan packet.Packet) {
+	buf := make([]byte, BUFFERSIZE)
+	for {
+		n, err := conn.Read(buf)
+		if err != nil {
+			fmt.Println("Failed to read from Connection:", err)
+			continue
+		}
+
+		p, err := packet.Unmarshal(buf[:n])
+		if err != nil {
+			fmt.Println("Failed to unmarshal data:", err)
+			continue
+		}
+		eIn <- p
 	}
 }
