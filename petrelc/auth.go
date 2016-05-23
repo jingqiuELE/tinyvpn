@@ -7,7 +7,7 @@ import (
 	"strconv"
 )
 
-func getSession(serverAddr string, port int) (sk [6]byte, err error) {
+func authGetSession(serverAddr string, port int) (sk [6]byte, err error) {
 	authServer := serverAddr + ":" + strconv.Itoa(port)
 	raddr, err := net.ResolveTCPAddr("tcp", authServer)
 	if err != nil {

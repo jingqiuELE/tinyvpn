@@ -20,9 +20,8 @@ type Packet struct {
 	Data   []byte
 }
 
-func NewPacket(sk [6]byte, data []byte) (p *Packet) {
+func NewPacket(data []byte) (p *Packet) {
 	p = new(Packet)
-	p.Header.Sk = sk
 	p.Header.Length = uint16(len(data))
 	p.Data = data
 	return

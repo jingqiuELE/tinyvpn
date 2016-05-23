@@ -32,7 +32,8 @@ func startUDPConnection(serverAddr string, port int, sk [6]byte, tun *water.Inte
 	go startListenTun(tun, c)
 	for {
 		data := <-c
-		p := packet.NewPacket(sk, data)
+		p := packet.NewPacket(data)
+		p.Header.Sk = sk
 		buf, err := packet.Marshal(p)
 		if err != nil {
 			fmt.Println("Failed to unmarshal the Packet:", err)
