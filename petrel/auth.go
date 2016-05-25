@@ -8,12 +8,12 @@ import (
 )
 
 type AuthServer struct {
-	secretMap map[session.SessionKey]session.Secret
+	secretMap map[session.Index]session.Secret
 }
 
 func newAuthServer(serverIP string, port int) (*AuthServer, error) {
-	a := new(AuthServer)
-	a.secretMap = make(map[session.SessionKey]session.Secret)
+	m := make(map[session.Index]session.Secret)
+	a := &AuthServer{secretMap: m}
 
 	serverAddr := serverIP + ":" + strconv.Itoa(port)
 	listenAddr, err := net.ResolveTCPAddr("tcp", serverAddr)
@@ -28,14 +28,16 @@ func newAuthServer(serverIP string, port int) (*AuthServer, error) {
 	}
 	defer l.Close()
 
-	for {
-		conn, err := l.AcceptTCP()
-		if err != nil {
-			fmt.Println("Error: ", err)
-			continue
+	go func() {
+		for {
+			conn, err := l.AcceptTCP()
+			if err != nil {
+				fmt.Println("Error: ", err)
+				continue
+			}
+			go a.handleAuthConn(conn)
 		}
-		go a.handleAuthConn(conn)
-	}
+	}()
 	return a, err
 }
 
@@ -47,17 +49,17 @@ func (a *AuthServer) handleAuthConn(conn *net.TCPConn) error {
 		return err
 	}
 
-	sk, err := session.NewSessionKey()
+	sk, err := session.MakeIndex()
 	if err != nil {
-		fmt.Println("Failed to create new SessionKey:", err)
+		fmt.Println("Failed to create new Index:", err)
 		return err
 	}
 
 	secret := []byte{23, 42, 17, 5}
-	a.secretMap[*sk] = secret
+	a.secretMap[sk] = secret
 	_, err = conn.Write(sk[:])
 	if err != nil {
-		fmt.Println("Failed to write SessionKey:", err)
+		fmt.Println("Failed to write Index:", err)
 		return err
 	}
 	return err

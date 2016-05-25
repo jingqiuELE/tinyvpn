@@ -10,8 +10,8 @@ import (
 
 const BUFFERSIZE = 1500
 
-func authGetSession(serverAddr string, port int) (session.SessionKey, error) {
-	var sk session.SessionKey
+func authGetSession(serverAddr string, port int) (session.Index, error) {
+	var sk session.Index
 	authServer := serverAddr + ":" + strconv.Itoa(port)
 	raddr, err := net.ResolveTCPAddr("tcp", authServer)
 	if err != nil {

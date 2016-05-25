@@ -11,7 +11,7 @@ import (
 )
 
 type ConnServer struct {
-	connMap map[session.SessionKey]Connection
+	connMap map[session.Index]Connection
 	out     chan packet.Packet
 	in      chan packet.Packet
 }
@@ -44,7 +44,7 @@ func (t TConnection) writePacket(p packet.Packet) (err error) {
 func newConnServer(serverIP string, tcpPort int, udpPort int,
 	out chan packet.Packet, in chan packet.Packet) (*ConnServer, error) {
 	c := new(ConnServer)
-	c.connMap = make(map[session.SessionKey]Connection)
+	c.connMap = make(map[session.Index]Connection)
 	c.out = out
 	c.in = in
 	if tcpPort != 0 {

@@ -11,8 +11,8 @@ import (
 )
 
 type Book struct {
-	ipToSession map[string]session.SessionKey
-	sessionToIp map[session.SessionKey]string
+	ipToSession map[string]session.Index
+	sessionToIp map[session.Index]string
 }
 
 type BookServer struct {
@@ -84,19 +84,19 @@ func (bs *BookServer) listenTun() error {
 
 func newBook() *Book {
 	b := new(Book)
-	b.ipToSession = make(map[string]session.SessionKey)
-	b.sessionToIp = make(map[session.SessionKey]string)
+	b.ipToSession = make(map[string]session.Index)
+	b.sessionToIp = make(map[session.Index]string)
 	return b
 }
-func (b *Book) getSession(ip string) session.SessionKey {
+func (b *Book) getSession(ip string) session.Index {
 	return b.ipToSession[ip]
 }
 
-func (b *Book) getIp(sessionKey session.SessionKey) string {
+func (b *Book) getIp(sessionKey session.Index) string {
 	return b.sessionToIp[sessionKey]
 }
 
-func (b *Book) Add(ip string, sessionKey session.SessionKey) {
+func (b *Book) Add(ip string, sessionKey session.Index) {
 	b.ipToSession[ip] = sessionKey
 	b.sessionToIp[sessionKey] = ip
 }
