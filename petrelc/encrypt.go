@@ -6,7 +6,7 @@ import (
 	"session"
 )
 
-func startEncrypt(eOut, eIn, pOut, pIn chan packet.Packet, sk session.Index) error {
+func startEncrypt(eOut, eIn, pOut, pIn chan packet.Packet, sk session.Key) error {
 	var p packet.Packet
 	go func() {
 		var eIn_ok, pOut_ok bool

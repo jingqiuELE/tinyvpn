@@ -5,14 +5,16 @@ import (
 	"net"
 	"session"
 	"strconv"
+	"sync"
 )
 
 type AuthServer struct {
-	secretMap map[session.Index]session.Secret
+	sync.RWMutex
+	secretMap map[session.Key]session.Secret
 }
 
 func newAuthServer(serverIP string, port int) (*AuthServer, error) {
-	m := make(map[session.Index]session.Secret)
+	m := make(map[session.Key]session.Secret)
 	a := &AuthServer{secretMap: m}
 
 	serverAddr := serverIP + ":" + strconv.Itoa(port)
@@ -49,17 +51,20 @@ func (a *AuthServer) handleAuthConn(conn *net.TCPConn) error {
 		return err
 	}
 
-	sk, err := session.MakeIndex()
+	sk, err := session.NewKey()
 	if err != nil {
-		fmt.Println("Failed to create new Index:", err)
+		fmt.Println("Failed to create new Key:", err)
 		return err
 	}
 
 	secret := []byte{23, 42, 17, 5}
-	a.secretMap[sk] = secret
+
+	a.Lock()
+	a.secretMap[*sk] = secret
+	a.Unlock()
 	_, err = conn.Write(sk[:])
 	if err != nil {
-		fmt.Println("Failed to write Index:", err)
+		fmt.Println("Failed to write Session Key:", err)
 		return err
 	}
 	return err
