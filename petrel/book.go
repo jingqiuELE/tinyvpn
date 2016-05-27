@@ -11,8 +11,8 @@ import (
 )
 
 type Book struct {
-	ipToSession map[string]session.Index
-	sessionToIp map[session.Index]string
+	ipToSession map[string]session.Key
+	sessionToIp map[session.Key]string
 }
 
 type BookServer struct {
@@ -64,11 +64,17 @@ func (bs *BookServer) start() {
 			return
 		}
 		src_ip := waterutil.IPv4Source(p.Data)
-		bs.book.Add(src_ip.String(), p.Header.Sk)
+
+		sk := new(session.Key)
+		copy(sk[:], p.Header.Sk[:session.KeyLen])
+		bs.book.Add(src_ip.String(), *sk)
 		bs.tun.Write(p.Data)
 	}
 }
 
+const BUFFERSIZE = 1500
+
+/* Handle internet traffic for the vpnnet */
 func (bs *BookServer) listenTun() error {
 	buffer := make([]byte, BUFFERSIZE)
 	for {
@@ -77,26 +83,27 @@ func (bs *BookServer) listenTun() error {
 			fmt.Println("Error reading from tunnel.")
 			return err
 		}
-		p := packet.NewPacket(buffer)
+		p := packet.NewPacket()
+		p.SetData(buffer)
 		bs.pOut <- *p
 	}
 }
 
 func newBook() *Book {
 	b := new(Book)
-	b.ipToSession = make(map[string]session.Index)
-	b.sessionToIp = make(map[session.Index]string)
+	b.ipToSession = make(map[string]session.Key)
+	b.sessionToIp = make(map[session.Key]string)
 	return b
 }
-func (b *Book) getSession(ip string) session.Index {
+func (b *Book) getSession(ip string) session.Key {
 	return b.ipToSession[ip]
 }
 
-func (b *Book) getIp(sessionKey session.Index) string {
+func (b *Book) getIp(sessionKey session.Key) string {
 	return b.sessionToIp[sessionKey]
 }
 
-func (b *Book) Add(ip string, sessionKey session.Index) {
+func (b *Book) Add(ip string, sessionKey session.Key) {
 	b.ipToSession[ip] = sessionKey
 	b.sessionToIp[sessionKey] = ip
 }

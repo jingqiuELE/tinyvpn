@@ -35,7 +35,8 @@ func handleTunOut(tun *water.Interface, pOut chan packet.Packet) {
 			return
 		}
 
-		p := packet.NewPacket(buf[:n])
+		p := packet.NewPacket()
+		p.SetData(buf[:n])
 		pOut <- *p
 	}
 }
@@ -43,11 +44,7 @@ func handleTunOut(tun *water.Interface, pOut chan packet.Packet) {
 func handleTunIn(tun *water.Interface, pIn chan packet.Packet) {
 	for {
 		p := <-pIn
-		buf, err := packet.Marshal(&p)
-		if err != nil {
-			fmt.Println("Failed to marshal packet:", err)
-			continue
-		}
+		buf := packet.MarshalToSlice(p)
 		tun.Write(buf)
 	}
 }

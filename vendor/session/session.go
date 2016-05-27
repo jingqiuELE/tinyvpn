@@ -5,17 +5,17 @@ import (
 	"fmt"
 )
 
-const IndexLen = 6
+const KeyLen = 6
 
-type Index [IndexLen]byte
+type Key [KeyLen]byte
 type Secret []byte
 
-func MakeIndex() (Index, error) {
-	m := new(Index)
-	_, err := rand.Read(m[:])
+func NewKey() (*Key, error) {
+	k := new(Key)
+	_, err := rand.Read(k[:])
 	if err != nil {
 		fmt.Println("Error:", err)
-		return *m, err
+		return k, err
 	}
-	return *m, err
+	return k, err
 }
