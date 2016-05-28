@@ -104,5 +104,4 @@ func startTunListener(plainInChan chan packet.Packet, ifce *water.Interface, ipS
 			//plainInChan <- buffer
 		}
 	}()
-	return
 }
