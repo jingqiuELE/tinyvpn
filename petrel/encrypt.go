@@ -25,8 +25,8 @@ func newEncryptServer(eOut, eIn, pOut, pIn chan packet.Packet) (*EncryptServer, 
 
 /*
 Direction:
-In  -> from client to vpn
-Out -> from vpn to client
+In  -> from client to target
+Out -> from target to client
 */
 func (e *EncryptServer) start() {
 	var eIn_ok, pOut_ok bool
