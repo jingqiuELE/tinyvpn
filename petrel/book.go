@@ -58,9 +58,9 @@ func (bs *BookServer) start() {
 	go bs.listenTun()
 
 	for {
-		p, ok := <-bs.pIn
+		p, ok := <-bs.pOut
 		if !ok {
-			fmt.Println("Failed to read from pIn:")
+			fmt.Println("Failed to read from pOut:")
 			return
 		}
 		src_ip := waterutil.IPv4Source(p.Data)
@@ -85,7 +85,7 @@ func (bs *BookServer) listenTun() error {
 		}
 		p := packet.NewPacket()
 		p.SetData(buffer)
-		bs.pOut <- *p
+		bs.pIn <- *p
 	}
 }
 

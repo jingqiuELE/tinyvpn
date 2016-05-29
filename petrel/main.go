@@ -3,14 +3,11 @@ package main
 import (
 	"errors"
 	"fmt"
-	"net"
 	"os"
 	"os/signal"
 	"packet"
 	"syscall"
 
-	"github.com/songgao/water"
-	"github.com/songgao/water/waterutil"
 	flag "github.com/spf13/pflag"
 )
 
@@ -71,37 +68,4 @@ func main() {
 	}()
 
 	b.start()
-}
-
-func startTunListener(plainInChan chan packet.Packet, ifce *water.Interface, ipSessionMap IpSessionMap) {
-	const bufferSize = 65535
-	go func() {
-		for {
-			buffer := make([]byte, bufferSize)
-			_, err := ifce.Read(buffer)
-			if err != nil {
-				fmt.Println("Error reading from tunnel.")
-			}
-			var dest net.IP
-			if waterutil.IsIPv4(buffer) {
-				dest = waterutil.IPv4Source(buffer)
-			}
-			if waterutil.IsIPv6(buffer) {
-				// TODO: IPv6 support
-			}
-
-			if dest != nil {
-				destStr := dest.String()
-				sessionKey := ipSessionMap.getSession(destStr)
-				if sessionKey != nil {
-					p := Packet{
-						sessionKey: sessionKey,
-					}
-					plainInChan <- p
-				}
-			}
-			// TODO: Create packet from buffer
-			//plainInChan <- buffer
-		}
-	}()
 }
