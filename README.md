@@ -25,7 +25,7 @@ Server Architecture
 ### Data Structures
 
 ##### Packet
-````
+````golang
 type Packet struct {
     iv [4]byte
     session [6]byte // Session key, used as MAC address for tun device.
@@ -35,7 +35,7 @@ type Packet struct {
 ````
 
 ##### Session
-````
+````golang
 type Connection Interface {
     writePacket(p Packet)
 }
