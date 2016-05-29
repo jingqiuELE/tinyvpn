@@ -7,10 +7,12 @@ import (
 	"github.com/songgao/water/waterutil"
 	"packet"
 	"session"
+	"sync"
 	"tunnel"
 )
 
 type Book struct {
+	sync.RWMutex
 	ipToSession map[string]session.Key
 	sessionToIp map[session.Key]string
 }
@@ -92,16 +94,24 @@ func newBook() *Book {
 	return b
 }
 func (b *Book) getSession(ip string) session.Key {
-	return b.ipToSession[ip]
+	b.RLock()
+	key := b.ipToSession[ip]
+	b.RUnlock()
+	return key
 }
 
 func (b *Book) getIp(sessionKey session.Key) string {
-	return b.sessionToIp[sessionKey]
+	b.RLock()
+	ip := b.sessionToIp[sessionKey]
+	b.RUnlock()
+	return ip
 }
 
 func (b *Book) Add(ip string, sessionKey session.Key) {
+	b.Lock()
 	b.ipToSession[ip] = sessionKey
 	b.sessionToIp[sessionKey] = ip
+	b.Unlock()
 }
 
 // shell scripts to manipulate tun network interface device.
