@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"github.com/songgao/water"
 	"os"
 	"os/signal"
 	"packet"
@@ -52,7 +53,13 @@ func main() {
 		return
 	}
 
-	b, err := newBookServer(plainOutChan, plainInChan, vpnnet)
+	tun, err := water.NewTUN("")
+	if err != nil {
+		fmt.Println("Error creating tun interface", err)
+		return
+	}
+
+	b, err := newBookServer(plainOutChan, plainInChan, vpnnet, tun)
 	if err != nil {
 		fmt.Println("Failed to create BookServer:", err)
 		return

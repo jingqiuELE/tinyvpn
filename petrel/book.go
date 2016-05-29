@@ -23,18 +23,14 @@ type BookServer struct {
 	tun    *water.Interface
 }
 
-func newBookServer(pOut, pIn chan packet.Packet, vpnnet string) (*BookServer, error) {
+func newBookServer(pOut, pIn chan packet.Packet, vpnnet string, tun *water.Interface) (*BookServer, error) {
 	var err error
 	bs := new(BookServer)
 	bs.book = newBook()
 	bs.pOut = pOut
 	bs.pIn = pIn
 	bs.vpnnet = vpnnet
-	bs.tun, err = water.NewTUN("")
-	if err != nil {
-		fmt.Println("Error creating tun interface", err)
-		return bs, err
-	}
+	bs.tun = tun
 
 	return bs, err
 }
