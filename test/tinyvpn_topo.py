@@ -26,6 +26,7 @@ topology enables one to pass in '--topo=mytopo' from the command line.
 
 from mininet.topo import Topo
 from mininet.net import Mininet
+from mininet.link import TCLink1
 from mininet.node import Node
 from mininet.log import setLogLevel, info
 from mininet.cli import CLI
@@ -51,12 +52,15 @@ class SimTopo( Topo ):
 
         # Add three switches to connect to r0.
         s1, s2, s3 = [ self.addSwitch( s ) for s in 's1', 's2', 's3' ]
-        self.addLink( s1, router, intfName2='r0-eth1',
-                      params2={ 'ip' : '10.0.1.1/24' } )
-        self.addLink( s2, router, intfName2='r0-eth2',
-                      params2={ 'ip' : '10.0.3.1/24' } )
-        self.addLink( s3, router, intfName2='r0-eth3',
-                      params2={ 'ip' : '10.0.5.1/24' } )
+
+        linkopts_1 = dict( params2={'ip':'10.0.1.1/24'}, bw=10)
+        self.addLink( s1, router, intfName2='r0-eth1', **linkopts_1)
+
+        linkopts_2 = dict( params2={'ip':'10.0.3.1/24'}, bw=10)
+        self.addLink( s2, router, intfName2='r0-eth2', **linkopts_2)
+
+        linkopts_3 = dict( params2={'ip':'10.0.5.1/24'}, bw=10)
+        self.addLink( s3, router, intfName2='r0-eth3', **linkopts_3)
 
         # Add hosts with IP config 
         client = self.addHost( 'client', ip="10.0.1.100/24",
@@ -66,9 +70,10 @@ class SimTopo( Topo ):
         target = self.addHost( 'target', ip="10.0.5.100/24", 
                                defaultRoute="via 10.0.5.1")
 
+        linkopts_default = dict(bw=100)
         # Add links between hosts and switches.
         for h, s in [ (client, s1), (server, s2), (target, s3) ]:
-            self.addLink(h, s)
+            self.addLink(h, s, **linkopts_default)
 
 def run():
     "Test tinyvpn simulation network"

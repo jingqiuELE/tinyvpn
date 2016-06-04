@@ -1,7 +1,7 @@
 MININET_NAME = tinyvpn_mininet
 TCPDUMP_NAME = tinyvpn_tcpdump
 CMD_START_OVS = service openvswitch-switch start
-CMD_START_MN = sudo mn --custom /projects/tinyvpn_topo.py --topo SimTopo
+CMD_START_MN = sudo mn --custom /projects/tinyvpn_topo.py --topo SimTopo --link tc1
 
 GO_BIN = ~/Projects/golang/bin
 SERVER = ../petrel/petrel
