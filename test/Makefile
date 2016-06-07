@@ -20,7 +20,7 @@ docker-tcpdump:
 	git clone https://github.com/jingqiuELE/docker-tcpdump.git
 
 run: clean start_container
-	docker exec $(MININET_NAME) mkdir /projects/tinyvpn
+	docker exec $(MININET_NAME) mkdir -p /projects/tinyvpn
 	docker cp $(SERVER) $(MININET_NAME):/projects/tinyvpn/
 	docker cp $(CLIENT) $(MININET_NAME):/projects/tinyvpn/
 	docker cp $(SERVER_START) $(MININET_NAME):/projects/tinyvpn/
