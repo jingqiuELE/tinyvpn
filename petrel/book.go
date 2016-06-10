@@ -5,6 +5,7 @@ import (
 	"github.com/codeskyblue/go-sh"
 	"github.com/songgao/water"
 	"github.com/songgao/water/waterutil"
+	"net"
 	"packet"
 	"session"
 	"sync"
@@ -18,27 +19,34 @@ type Book struct {
 }
 
 type BookServer struct {
-	book   *Book
-	pOut   chan packet.Packet
-	pIn    chan packet.Packet
-	vpnnet string
-	tun    *water.Interface
+	book        *Book
+	pOut        chan packet.Packet
+	pIn         chan packet.Packet
+	internalIP  net.IP
+	internalNet *net.IPNet
+	tun         *water.Interface
 }
 
-func newBookServer(pOut, pIn chan packet.Packet, vpnnet string, tun *water.Interface) (*BookServer, error) {
-	var err error
-	bs := new(BookServer)
+func newBookServer(pOut, pIn chan packet.Packet, vpnnet string, tun *water.Interface) (bs *BookServer, err error) {
+	bs = new(BookServer)
 	bs.book = newBook()
 	bs.pOut = pOut
 	bs.pIn = pIn
-	bs.vpnnet = vpnnet
 	bs.tun = tun
 
-	return bs, err
+	internalIP, ipNet, err := net.ParseCIDR(vpnnet)
+	if err != nil {
+		fmt.Println("Error in vpnnet format: %V", vpnnet)
+		return
+	}
+	bs.internalNet = ipNet
+	bs.internalIP = internalIP
+
+	return
 }
 
 func (bs *BookServer) start() {
-	err := tunnel.AddAddr(bs.tun, bs.vpnnet)
+	err := tunnel.AddAddr(bs.tun, bs.internalIP)
 	if err != nil {
 		return
 	}

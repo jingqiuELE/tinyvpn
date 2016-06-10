@@ -3,15 +3,21 @@ package main
 import (
 	"fmt"
 	"github.com/songgao/water"
+	"net"
 	"packet"
 	"tunnel"
 )
 
 /* Handle client's traffic, wrap each packet with outer IP Header */
-func startListenTun(pIn, pOut chan packet.Packet) error {
+func startListenTun(pIn, pOut chan packet.Packet, ip net.IP) error {
 	tun, err := water.NewTUN("")
 	if err != nil {
 		fmt.Printf("Error is %v\n", err)
+		return err
+	}
+
+	err = tunnel.AddAddr(tun, ip)
+	if err != nil {
 		return err
 	}
 

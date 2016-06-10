@@ -16,10 +16,10 @@ func main() {
 	var (
 		tcpPort, udpPort, authPort int
 		serverAddr                 string
-		encryptedOutChan           = make(chan packet.Packet, channelSize)
-		plainOutChan               = make(chan packet.Packet, channelSize)
-		encryptedInChan            = make(chan packet.Packet, channelSize)
-		plainInChan                = make(chan packet.Packet, channelSize)
+		eOut                       = make(chan packet.Packet, channelSize)
+		pOut                       = make(chan packet.Packet, channelSize)
+		eIn                        = make(chan packet.Packet, channelSize)
+		pIn                        = make(chan packet.Packet, channelSize)
 	)
 
 	flag.StringVarP(&serverAddr, "serverAddr", "s", "0.0.0.0", "IP address of the server")
@@ -28,20 +28,25 @@ func main() {
 	flag.IntVarP(&udpPort, "udp", "u", 8272, "UDP port of connServer")
 	flag.Parse()
 
-	sk, err := authGetSession(serverAddr, authPort)
+	sk, ip, err := authGetSession(serverAddr, authPort)
 	if err != nil {
 		fmt.Println("Failed to auth myself:", err)
 		return
 	}
 
-	err = startEncrypt(encryptedOutChan, encryptedInChan,
-		plainOutChan, plainInChan, sk)
+	err = startListenTun(pIn, pOut, ip)
+	if err != nil {
+		fmt.Println("Failed to start Tunnel Listener:", err)
+		return
+	}
+
+	err = startEncrypt(eOut, eIn, pOut, pIn, sk)
 	if err != nil {
 		fmt.Println("Failed to create EncryptServer:", err)
 		return
 	}
 
-	err = startConnection(serverAddr, udpPort, encryptedOutChan, encryptedInChan)
+	err = startConnection(serverAddr, udpPort, eOut, eIn)
 	if err != nil {
 		fmt.Println("Faild to create Connection:", err)
 		return

@@ -8,7 +8,7 @@ import (
 const KeyLen = 6
 
 type Key [KeyLen]byte
-type Secret []byte
+type Secret [32]byte
 
 func NewKey() (*Key, error) {
 	k := new(Key)
@@ -18,4 +18,14 @@ func NewKey() (*Key, error) {
 		return k, err
 	}
 	return k, err
+}
+
+func NewSecret() (*Secret, error) {
+	s := new(Secret)
+	_, err := rand.Read(s[:])
+	if err != nil {
+		fmt.Println("Error:", err)
+		return s, err
+	}
+	return s, err
 }

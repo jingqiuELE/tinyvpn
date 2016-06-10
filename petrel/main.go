@@ -19,10 +19,10 @@ func main() {
 		tcpPort, udpPort, authPort int
 		serverAddr, vpnnet         string
 
-		encryptedOutChan = make(chan packet.Packet, channelSize)
-		plainOutChan     = make(chan packet.Packet, channelSize)
-		encryptedInChan  = make(chan packet.Packet, channelSize)
-		plainInChan      = make(chan packet.Packet, channelSize)
+		eOut = make(chan packet.Packet, channelSize)
+		pOut = make(chan packet.Packet, channelSize)
+		eIn  = make(chan packet.Packet, channelSize)
+		pIn  = make(chan packet.Packet, channelSize)
 	)
 
 	flag.IntVarP(&authPort, "auth", "a", 7282, "Port for the authentication service to listen to.")
@@ -34,20 +34,20 @@ func main() {
 
 	fmt.Printf("Values of the config are: Auth %v, TCP %v, UDP %v, ServerAddr %v, Vpnnet %v\n", authPort, tcpPort, udpPort, serverAddr, vpnnet)
 
-	_, err := newAuthServer(serverAddr, authPort)
+	_, err := newAuthServer(serverAddr, authPort, vpnnet)
 	if err != nil {
 		fmt.Printf("Failed to create AuthServer %v\n", err)
 		return
 	}
 
-	_, err = newConnServer(serverAddr, tcpPort, udpPort, encryptedOutChan, encryptedInChan)
+	_, err = newConnServer(serverAddr, tcpPort, udpPort, eOut, eIn)
 	if err != nil {
 		fmt.Println("Failed to create ConnServer:", err)
 		return
 	}
 
 	//To be passed with a (Type *AuthServer), so that EncryptServer can access session secret.
-	_, err = newEncryptServer(encryptedOutChan, encryptedInChan, plainOutChan, plainInChan)
+	_, err = newEncryptServer(eOut, eIn, pOut, pIn)
 	if err != nil {
 		fmt.Println("Failed to create EncryptServer:", err)
 		return
@@ -59,7 +59,7 @@ func main() {
 		return
 	}
 
-	b, err := newBookServer(plainOutChan, plainInChan, vpnnet, tun)
+	b, err := newBookServer(pOut, pIn, vpnnet, tun)
 	if err != nil {
 		fmt.Println("Failed to create BookServer:", err)
 		return

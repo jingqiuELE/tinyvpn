@@ -7,14 +7,8 @@ import (
 	"net"
 )
 
-func AddAddr(t *water.Interface, vpnnet string) error {
-	_, ipNet, err := net.ParseCIDR(vpnnet)
-	if err != nil {
-		fmt.Println("Error in vpnnet format: %V", vpnnet)
-		return err
-	}
-
-	err = sh.Command("ip", "addr", "add", ipNet.String(), "dev", t.Name()).Run()
+func AddAddr(t *water.Interface, ip net.IP) error {
+	err := sh.Command("ip", "addr", "add", ip.String(), "dev", t.Name()).Run()
 	if err != nil {
 		fmt.Println("Error adding address to:", t.Name())
 	}

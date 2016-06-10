@@ -10,27 +10,26 @@ import (
 
 const BUFFERSIZE = 1500
 
-func authGetSession(serverAddr string, port int) (session.Key, error) {
-	var sk session.Key
+func authGetSession(serverAddr string, port int) (sk session.Key, ip net.IP, err error) {
 	authServer := serverAddr + ":" + strconv.Itoa(port)
 	raddr, err := net.ResolveTCPAddr("tcp", authServer)
 	if err != nil {
 		fmt.Println("Error when resolving authServer:", err)
-		return sk, err
+		return
 	}
 
 	conn, err := net.DialTCP("tcp", nil, raddr)
 	if err != nil {
 		fmt.Println("Dail error:", err)
-		return sk, err
+		return
 	}
 	defer conn.Close()
 
-	secret := []byte("Hello world")
+	secret := []byte("apple:juice")
 	_, err = conn.Write(secret)
 	if err != nil {
 		fmt.Println("Error writing:", err)
-		return sk, err
+		return
 	}
 
 	buf := make([]byte, BUFFERSIZE)
@@ -38,10 +37,12 @@ func authGetSession(serverAddr string, port int) (session.Key, error) {
 	if err != nil {
 		fmt.Println("Read error:", err)
 		if err != io.EOF {
-			return sk, err
+			return
 		}
 	}
 
 	copy(sk[:], buf[:6])
-	return sk, err
+	copy(ip[:], buf[6:])
+
+	return
 }
