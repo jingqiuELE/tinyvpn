@@ -103,7 +103,6 @@ func (c *ConnServer) startUDPListener(serverIP string, port int) error {
 	}
 
 	ProxyConn = pudp
-	defer pudp.Close()
 
 	go func() {
 		for {
@@ -130,7 +129,6 @@ func (c *ConnServer) startTCPListener(serverIP string, port int) error {
 		fmt.Println("Error when listening to TCP Address!")
 		return err
 	}
-	defer ln.Close()
 
 	go func() {
 		for {

@@ -43,7 +43,6 @@ func newAuthServer(serverIP string, port int, vpnnet string) (*AuthServer, error
 	if err != nil {
 		return a, err
 	}
-	defer l.Close()
 
 	internalIP, ipNet, err := net.ParseCIDR(vpnnet)
 	if err != nil {
