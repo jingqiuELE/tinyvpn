@@ -66,10 +66,7 @@ func newAuthServer(serverIP string, port int, vpnnet string) (*AuthServer, error
 
 func dumpString(s string) {
 	fmt.Println("dump start. len=", len(s))
-	for i := 0; i < len(s); i++ {
-		fmt.Printf("%x ", s[i])
-	}
-	fmt.Println("dump complete")
+	fmt.Printf("% x ", s)
 }
 
 func (a *AuthServer) handleAuthConn(conn *net.TCPConn) error {
@@ -81,7 +78,6 @@ func (a *AuthServer) handleAuthConn(conn *net.TCPConn) error {
 	}
 
 	s := string(buf[:n])
-	fmt.Println("Received: ", s)
 	data := strings.Split(s, ":")
 	user := data[0]
 	rp := data[1]
