@@ -64,22 +64,30 @@ func newAuthServer(serverIP string, port int, vpnnet string) (*AuthServer, error
 	return a, err
 }
 
+func dumpString(s string) {
+	fmt.Println("dump start. len=", len(s))
+	for i := 0; i < len(s); i++ {
+		fmt.Printf("%x ", s[i])
+	}
+	fmt.Println("dump complete")
+}
+
 func (a *AuthServer) handleAuthConn(conn *net.TCPConn) error {
 	buf := make([]byte, 1024)
-	_, err := conn.Read(buf)
+	n, err := conn.Read(buf)
 	if err != nil {
 		fmt.Println("Failed to read:", err)
 		return err
 	}
 
-	s := string(buf)
+	s := string(buf[:n])
+	fmt.Println("Received: ", s)
 	data := strings.Split(s, ":")
 	user := data[0]
 	rp := data[1]
 	p, ok := userMap[user]
-
-	if match := strings.Compare(p, rp); !ok || (match != 0) {
-		fmt.Println("User/Password incorrect!")
+	if !ok || (p != rp) {
+		fmt.Println("User/Password incorrect!", ok)
 		return ErrUser
 	}
 
