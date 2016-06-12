@@ -16,7 +16,7 @@ func startListenTun(pIn, pOut chan packet.Packet, ip net.IP) error {
 		return err
 	}
 
-	err = tunnel.AddAddr(tun, ip)
+	err = tunnel.AddAddr(tun, ip.String())
 	if err != nil {
 		return err
 	}

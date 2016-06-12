@@ -5,9 +5,6 @@ import (
 	"net"
 )
 
-var ErrNoIPAddrAvaliable = errors.New("No IPAddr avaliable")
-var ErrIPAddrPoolFull = errors.New("IPAddrPool is full")
-
 type IPAddrPool chan *net.IPNet
 
 func NewIPAddrPool(reserveIP net.IP, ipNet *net.IPNet) (p IPAddrPool) {
@@ -39,8 +36,7 @@ func (p IPAddrPool) Get() (ip *net.IPNet, err error) {
 	case ip = <-p:
 		return
 	default:
-		err = ErrNoIPAddrAvaliable
-		return
+		return nil, errors.New("No IPAddr available.")
 	}
 }
 
@@ -49,7 +45,6 @@ func (p IPAddrPool) Put(ip *net.IPNet) (err error) {
 	case p <- ip:
 		return
 	default:
-		err = ErrIPAddrPoolFull
-		return
+		return errors.New("IPAddrPool is full.")
 	}
 }

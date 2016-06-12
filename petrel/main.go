@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"packet"
 	"syscall"
+	"tunnel"
 
 	flag "github.com/spf13/pflag"
 )
@@ -29,7 +30,7 @@ func main() {
 	flag.IntVarP(&tcpPort, "tcp", "t", 8272, "TCP port to listen to, 0 to disable tcp")
 	flag.IntVarP(&udpPort, "udp", "u", 8272, "UDP port to listen to, 0 to disable udp")
 	flag.StringVarP(&serverAddr, "serverAddr", "s", "0.0.0.0", "IP address the server suppose to listen to, e.g. 127.0.0.1")
-	flag.StringVarP(&vpnnet, "vpnnet", "n", "10.82.72.0/24", "Subnet netmask for the VPN subnet, e.g. 10.0.0.1/24")
+	flag.StringVarP(&vpnnet, "vpnnet", "n", "172.0.1.1/24", "Subnet netmask for the VPN subnet, e.g. 172.0.0.1/24")
 	flag.Parse()
 
 	fmt.Printf("Values of the config are: Auth %v, TCP %v, UDP %v, ServerAddr %v, Vpnnet %v\n", authPort, tcpPort, udpPort, serverAddr, vpnnet)
@@ -46,7 +47,6 @@ func main() {
 		return
 	}
 
-	//To be passed with a (Type *AuthServer), so that EncryptServer can access session secret.
 	_, err = newEncryptServer(eOut, eIn, pOut, pIn)
 	if err != nil {
 		fmt.Println("Failed to create EncryptServer:", err)
@@ -56,6 +56,18 @@ func main() {
 	tun, err := water.NewTUN("")
 	if err != nil {
 		fmt.Println("Error creating tun interface", err)
+		return
+	}
+	err = tunnel.AddAddr(tun, vpnnet)
+	if err != nil {
+		return
+	}
+	err = tunnel.Bringup(tun)
+	if err != nil {
+		return
+	}
+	err = SetNAT()
+	if err != nil {
 		return
 	}
 
