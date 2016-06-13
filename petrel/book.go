@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"github.com/codeskyblue/go-sh"
 	"github.com/songgao/water"
 	"github.com/songgao/water/waterutil"
@@ -39,7 +38,7 @@ func (bs *BookServer) start() {
 	for {
 		p, ok := <-bs.pOut
 		if !ok {
-			fmt.Println("Failed to read from pOut:")
+			log.Error("Failed to read from pOut:")
 			return
 		}
 		src_ip := waterutil.IPv4Source(p.Data)
@@ -59,7 +58,7 @@ func (bs *BookServer) listenTun() error {
 	for {
 		_, err := bs.tun.Read(buffer)
 		if err != nil {
-			fmt.Println("Error reading from tunnel.")
+			log.Error("Error reading from tunnel.")
 			return err
 		}
 		p := packet.NewPacket()
@@ -106,9 +105,9 @@ func SetNAT() error {
 	var err error
 	default_if, err := getDefaultRouteIf()
 	if err != nil {
-		fmt.Println("Cannot get the default routing interface")
+		log.Error("Cannot get the default routing interface")
 	} else {
-		fmt.Println("Default route interface is", default_if)
+		log.Error("Default route interface is", default_if)
 		err = sh.Command("iptables", "-t", "nat", "-A", "POSTROUTING", "-o", default_if, "-j", "MASQUERADE").Run()
 	}
 	return err

@@ -35,7 +35,7 @@ func newAuthServer(serverIP string, port int, vpnnet string) (*AuthServer, error
 	serverAddr := serverIP + ":" + strconv.Itoa(port)
 	listenAddr, err := net.ResolveTCPAddr("tcp", serverAddr)
 	if err != nil {
-		fmt.Println("Error when resoving TCP Address!")
+		log.Error("Error when resoving TCP Address!")
 		return a, err
 	}
 
@@ -46,7 +46,7 @@ func newAuthServer(serverIP string, port int, vpnnet string) (*AuthServer, error
 
 	internalIP, ipNet, err := net.ParseCIDR(vpnnet)
 	if err != nil {
-		fmt.Println("Error in vpnnet format: %V", vpnnet)
+		log.Error("Error in vpnnet format: %V", vpnnet)
 		return a, err
 	}
 	a.ipAddrPool = ippool.NewIPAddrPool(internalIP, ipNet)
@@ -55,7 +55,7 @@ func newAuthServer(serverIP string, port int, vpnnet string) (*AuthServer, error
 		for {
 			conn, err := l.AcceptTCP()
 			if err != nil {
-				fmt.Println("Error: ", err)
+				log.Error("Error: ", err)
 				continue
 			}
 			go a.handleAuthConn(conn)
@@ -73,7 +73,7 @@ func (a *AuthServer) handleAuthConn(conn *net.TCPConn) error {
 	buf := make([]byte, 1024)
 	n, err := conn.Read(buf)
 	if err != nil {
-		fmt.Println("Failed to read:", err)
+		log.Error("Failed to read:", err)
 		return err
 	}
 
@@ -83,19 +83,19 @@ func (a *AuthServer) handleAuthConn(conn *net.TCPConn) error {
 	rp := data[1]
 	p, ok := userMap[user]
 	if !ok || (p != rp) {
-		fmt.Println("User/Password incorrect!", ok)
+		log.Error("User/Password incorrect!", ok)
 		return ErrUser
 	}
 
 	sk, err := session.NewKey()
 	if err != nil {
-		fmt.Println("Failed to create new Key:", err)
+		log.Error("Failed to create new Key:", err)
 		return err
 	}
 
 	secret, err := session.NewSecret()
 	if err != nil {
-		fmt.Println("Failed to create new Secret:", err)
+		log.Error("Failed to create new Secret:", err)
 		return err
 	}
 
@@ -112,7 +112,7 @@ func (a *AuthServer) handleAuthConn(conn *net.TCPConn) error {
 	buf = append((*sk)[:], assignIP...)
 	_, err = conn.Write(buf)
 	if err != nil {
-		fmt.Println("Failed to sendback response:", err)
+		log.Error("Failed to sendback response:", err)
 		return err
 	}
 	return err

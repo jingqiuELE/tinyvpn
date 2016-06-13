@@ -2,8 +2,8 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"github.com/songgao/water"
+	"logger"
 	"os"
 	"os/signal"
 	"packet"
@@ -12,6 +12,8 @@ import (
 
 	flag "github.com/spf13/pflag"
 )
+
+var log = logger.Get()
 
 func main() {
 
@@ -33,47 +35,50 @@ func main() {
 	flag.StringVarP(&vpnnet, "vpnnet", "n", "172.0.1.1/24", "Subnet netmask for the VPN subnet, e.g. 172.0.0.1/24")
 	flag.Parse()
 
-	fmt.Printf("Values of the config are: Auth %v, TCP %v, UDP %v, ServerAddr %v, Vpnnet %v\n", authPort, tcpPort, udpPort, serverAddr, vpnnet)
+	log.Infof("Values of the config are: Auth %v, TCP %v, UDP %v, ServerAddr %v, vpnnet %v", authPort, tcpPort, udpPort, serverAddr, vpnnet)
 
 	_, err := newAuthServer(serverAddr, authPort, vpnnet)
 	if err != nil {
-		fmt.Printf("Failed to create AuthServer %v\n", err)
+		log.Errorf("Failed to create AuthServer %v", err)
 		return
 	}
 
 	_, err = newConnServer(serverAddr, tcpPort, udpPort, eOut, eIn)
 	if err != nil {
-		fmt.Println("Failed to create ConnServer:", err)
+		log.Error("Failed to create ConnServer:", err)
 		return
 	}
 
 	_, err = newEncryptServer(eOut, eIn, pOut, pIn)
 	if err != nil {
-		fmt.Println("Failed to create EncryptServer:", err)
+		log.Error("Failed to create EncryptServer:", err)
 		return
 	}
 
 	tun, err := water.NewTUN("")
 	if err != nil {
-		fmt.Println("Error creating tun interface", err)
+		log.Error("Error creating tun interface", err)
 		return
 	}
 	err = tunnel.AddAddr(tun, vpnnet)
 	if err != nil {
+		log.Error(err)
 		return
 	}
 	err = tunnel.Bringup(tun)
 	if err != nil {
+		log.Error(err)
 		return
 	}
 	err = SetNAT()
 	if err != nil {
+		log.Error(err)
 		return
 	}
 
 	b, err := newBookServer(pOut, pIn, vpnnet, tun)
 	if err != nil {
-		fmt.Println("Failed to create BookServer:", err)
+		log.Error("Failed to create BookServer:", err)
 		return
 	}
 
@@ -83,7 +88,7 @@ func main() {
 		signal.Notify(c, os.Interrupt, os.Kill, syscall.SIGTERM)
 
 		s := <-c
-		fmt.Println("Received signal", errors.New(s.String()))
+		log.Notice("Received signal", errors.New(s.String()))
 	}()
 
 	b.start()
