@@ -35,7 +35,7 @@ func newAuthServer(serverIP string, port int, vpnnet string) (*AuthServer, error
 	serverAddr := serverIP + ":" + strconv.Itoa(port)
 	listenAddr, err := net.ResolveTCPAddr("tcp", serverAddr)
 	if err != nil {
-		log.Error("Error when resoving TCP Address!")
+		log.Error("Resoving TCP Address:", err)
 		return a, err
 	}
 
@@ -46,7 +46,7 @@ func newAuthServer(serverIP string, port int, vpnnet string) (*AuthServer, error
 
 	internalIP, ipNet, err := net.ParseCIDR(vpnnet)
 	if err != nil {
-		log.Error("Error in vpnnet format: %V", vpnnet)
+		log.Error("Invalid vpnnet format: %v", vpnnet, err)
 		return a, err
 	}
 	a.ipAddrPool = ippool.NewIPAddrPool(internalIP, ipNet)
@@ -55,7 +55,7 @@ func newAuthServer(serverIP string, port int, vpnnet string) (*AuthServer, error
 		for {
 			conn, err := l.AcceptTCP()
 			if err != nil {
-				log.Error("Error: ", err)
+				log.Error(err)
 				continue
 			}
 			go a.handleAuthConn(conn)
