@@ -46,7 +46,7 @@ func newAuthServer(serverIP string, port int, vpnnet string) (*AuthServer, error
 
 	internalIP, ipNet, err := net.ParseCIDR(vpnnet)
 	if err != nil {
-		log.Error("Invalid vpnnet format: %v", vpnnet, err)
+		log.Errorf("Invalid vpnnet format: %v", vpnnet, err)
 		return a, err
 	}
 	a.ipAddrPool = ippool.NewIPAddrPool(internalIP, ipNet)
