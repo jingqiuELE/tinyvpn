@@ -28,8 +28,9 @@ In  -> from client to target
 Out -> from target to client
 */
 func (e *EncryptServer) start() {
-	var eIn_ok, pOut_ok bool
 	var p packet.Packet
+	eIn_ok := true
+	pOut_ok := true
 	for {
 		if !eIn_ok || !pOut_ok {
 			log.Notice("channel closed!")

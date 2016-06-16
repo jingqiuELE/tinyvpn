@@ -107,7 +107,7 @@ func SetNAT() error {
 	if err != nil {
 		log.Error("Cannot get the default routing interface")
 	} else {
-		log.Error("Default route interface is", default_if)
+		log.Info("Default route interface is", default_if)
 		err = sh.Command("iptables", "-t", "nat", "-A", "POSTROUTING", "-o", default_if, "-j", "MASQUERADE").Run()
 	}
 	return err
