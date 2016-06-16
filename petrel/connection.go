@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"net"
 	"packet"
 	"session"
@@ -34,7 +33,7 @@ func (u UConnection) writePacket(p packet.Packet) error {
 	buf := packet.MarshalToSlice(p)
 	_, err := ProxyConn.WriteToUDP(buf, u.UDPAddr)
 	if err != nil {
-		fmt.Println("Failed to write Packet to UDP client:", err)
+		log.Error("Failed to write Packet to UDP client:", err)
 	}
 	return err
 }
@@ -42,7 +41,7 @@ func (u UConnection) writePacket(p packet.Packet) error {
 func (t TConnection) writePacket(p packet.Packet) error {
 	err := packet.MarshalToStream(p, t.TCPConn)
 	if err != nil {
-		fmt.Println("Failed to write Packet to TCP client:", err)
+		log.Error("Failed to write Packet to TCP client:", err)
 	}
 	return err
 }
@@ -57,7 +56,7 @@ func newConnServer(serverIP string, tcpPort int, udpPort int,
 	if tcpPort != 0 {
 		err := c.startTCPListener(serverIP, tcpPort)
 		if err != nil {
-			fmt.Printf("Error is %v\n", err)
+			log.Error(err)
 			return c, err
 		}
 	}
@@ -65,7 +64,7 @@ func newConnServer(serverIP string, tcpPort int, udpPort int,
 	if udpPort != 0 {
 		err := c.startUDPListener(serverIP, udpPort)
 		if err != nil {
-			fmt.Printf("Error is %v\n", err)
+			log.Error(err)
 			return c, err
 		}
 	}
@@ -92,13 +91,13 @@ func (c *ConnServer) startUDPListener(serverIP string, port int) error {
 	serverAddr := serverIP + ":" + strconv.Itoa(port)
 	listenAddr, err := net.ResolveUDPAddr("udp", serverAddr)
 	if err != nil {
-		fmt.Println("Error when resoving UDP Address!")
+		log.Error("Error when resoving UDP Address!")
 		return err
 	}
 
 	pudp, err := net.ListenUDP("udp", listenAddr)
 	if err != nil {
-		fmt.Println("Error when listening to UDP Address!")
+		log.Error(err)
 		return err
 	}
 
@@ -120,13 +119,13 @@ func (c *ConnServer) startTCPListener(serverIP string, port int) error {
 	serverAddr := serverIP + ":" + strconv.Itoa(port)
 	listenAddr, err := net.ResolveTCPAddr("tcp", serverAddr)
 	if err != nil {
-		fmt.Println("Error when resoving TCP Address!")
+		log.Error(err)
 		return err
 	}
 
 	ln, err := net.ListenTCP("tcp", listenAddr)
 	if err != nil {
-		fmt.Println("Error when listening to TCP Address!")
+		log.Error(err)
 		return err
 	}
 
@@ -134,7 +133,7 @@ func (c *ConnServer) startTCPListener(serverIP string, port int) error {
 		for {
 			conn, err := ln.AcceptTCP()
 			if err != nil {
-				fmt.Println("Error: ", err)
+				log.Error(err)
 				return
 			}
 			go c.handleTCPConn(conn)
@@ -146,7 +145,7 @@ func (c *ConnServer) startTCPListener(serverIP string, port int) error {
 func (c *ConnServer) handleTCPConn(conn *net.TCPConn) error {
 	p, err := readPacketFromTCP(conn)
 	if err != nil {
-		fmt.Println("Error:reading ", err)
+		log.Error(err)
 		return err
 	}
 
@@ -167,7 +166,7 @@ func (c *ConnServer) handleTCPConn(conn *net.TCPConn) error {
 func readPacketFromTCP(t *net.TCPConn) (packet.Packet, error) {
 	p, err := packet.UnmarshalStream(t)
 	if err != nil {
-		fmt.Println("UnmarshalFromStream failed:", err)
+		log.Error("UnmarshalFromStream failed:", err)
 	}
 	return p, err
 }
@@ -177,13 +176,13 @@ func (c *ConnServer) readPacketFromUDP(u *net.UDPConn) (packet.Packet, error) {
 	buf := make([]byte, BUFFERSIZE)
 	_, cliaddr, err := u.ReadFromUDP(buf)
 	if err != nil {
-		fmt.Println("Error:reading from ", err, cliaddr.String())
+		log.Error("reading from ", cliaddr.String(), err)
 		return p, err
 	}
 
 	p, err = packet.UnmarshalSlice(buf)
 	if err != nil {
-		fmt.Println("Error creating Packet from buffer!")
+		log.Error("creating Packet from buffer:", err)
 		return p, err
 	}
 

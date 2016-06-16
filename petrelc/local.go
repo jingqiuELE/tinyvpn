@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"github.com/songgao/water"
 	"net"
 	"packet"
@@ -12,11 +11,11 @@ import (
 func startListenTun(pIn, pOut chan packet.Packet, ip net.IP) error {
 	tun, err := water.NewTUN("")
 	if err != nil {
-		fmt.Printf("Error is %v\n", err)
+		log.Error(err)
 		return err
 	}
 
-	err = tunnel.AddAddr(tun, ip)
+	err = tunnel.AddAddr(tun, ip.String())
 	if err != nil {
 		return err
 	}
@@ -37,7 +36,7 @@ func handleTunOut(tun *water.Interface, pOut chan packet.Packet) {
 	for {
 		n, err := tun.Read(buf)
 		if err != nil {
-			fmt.Println("Error reading from tunnel:", err)
+			log.Error("Reading from tunnel:", err)
 			return
 		}
 

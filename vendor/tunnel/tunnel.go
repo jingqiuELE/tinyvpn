@@ -4,11 +4,10 @@ import (
 	"fmt"
 	"github.com/codeskyblue/go-sh"
 	"github.com/songgao/water"
-	"net"
 )
 
-func AddAddr(t *water.Interface, ip net.IP) error {
-	err := sh.Command("ip", "addr", "add", ip.String(), "dev", t.Name()).Run()
+func AddAddr(t *water.Interface, addr string) error {
+	err := sh.Command("ip", "addr", "add", addr, "dev", t.Name()).Run()
 	if err != nil {
 		fmt.Println("Error adding address to:", t.Name())
 	}

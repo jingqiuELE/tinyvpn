@@ -2,13 +2,15 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	flag "github.com/spf13/pflag"
+	"logger"
 	"os"
 	"os/signal"
 	"packet"
 	"syscall"
 )
+
+var log = logger.Get()
 
 func main() {
 	const channelSize = 10
@@ -30,25 +32,25 @@ func main() {
 
 	sk, ip, err := authGetSession(serverAddr, authPort)
 	if err != nil {
-		fmt.Println("Failed to auth myself:", err)
+		log.Error("Failed to auth myself:", err)
 		return
 	}
 
 	err = startListenTun(pIn, pOut, ip)
 	if err != nil {
-		fmt.Println("Failed to start Tunnel Listener:", err)
+		log.Error("Failed to start Tunnel Listener:", err)
 		return
 	}
 
 	err = startEncrypt(eOut, eIn, pOut, pIn, sk)
 	if err != nil {
-		fmt.Println("Failed to create EncryptServer:", err)
+		log.Error("Failed to create EncryptServer:", err)
 		return
 	}
 
 	err = startConnection(serverAddr, udpPort, eOut, eIn)
 	if err != nil {
-		fmt.Println("Faild to create Connection:", err)
+		log.Error("Faild to create Connection:", err)
 		return
 	}
 
@@ -56,10 +58,10 @@ func main() {
 		c := make(chan os.Signal, 1)
 		signal.Notify(c, os.Interrupt, os.Kill, syscall.SIGTERM)
 		s := <-c
-		fmt.Println("Received signal", errors.New(s.String()))
+		log.Notice("Received signal", errors.New(s.String()))
 	}()
 
-	fmt.Println("process quit")
+	log.Notice("process quit")
 
 	return
 }
