@@ -2,15 +2,18 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"github.com/songgao/water"
+	"logger"
 	"os"
 	"os/signal"
 	"packet"
 	"syscall"
+	"tunnel"
 
 	flag "github.com/spf13/pflag"
 )
+
+var log = logger.Get()
 
 func main() {
 
@@ -19,49 +22,63 @@ func main() {
 		tcpPort, udpPort, authPort int
 		serverAddr, vpnnet         string
 
-		encryptedOutChan = make(chan packet.Packet, channelSize)
-		plainOutChan     = make(chan packet.Packet, channelSize)
-		encryptedInChan  = make(chan packet.Packet, channelSize)
-		plainInChan      = make(chan packet.Packet, channelSize)
+		eOut = make(chan packet.Packet, channelSize)
+		pOut = make(chan packet.Packet, channelSize)
+		eIn  = make(chan packet.Packet, channelSize)
+		pIn  = make(chan packet.Packet, channelSize)
 	)
 
 	flag.IntVarP(&authPort, "auth", "a", 7282, "Port for the authentication service to listen to.")
 	flag.IntVarP(&tcpPort, "tcp", "t", 8272, "TCP port to listen to, 0 to disable tcp")
 	flag.IntVarP(&udpPort, "udp", "u", 8272, "UDP port to listen to, 0 to disable udp")
 	flag.StringVarP(&serverAddr, "serverAddr", "s", "0.0.0.0", "IP address the server suppose to listen to, e.g. 127.0.0.1")
-	flag.StringVarP(&vpnnet, "vpnnet", "n", "10.82.72.0/24", "Subnet netmask for the VPN subnet, e.g. 10.0.0.1/24")
+	flag.StringVarP(&vpnnet, "vpnnet", "n", "172.0.1.1/24", "Subnet netmask for the VPN subnet, e.g. 172.0.0.1/24")
 	flag.Parse()
 
-	fmt.Printf("Values of the config are: Auth %v, TCP %v, UDP %v, ServerAddr %v, Vpnnet %v\n", authPort, tcpPort, udpPort, serverAddr, vpnnet)
+	log.Infof("Values of the config are: Auth %v, TCP %v, UDP %v, ServerAddr %v, vpnnet %v", authPort, tcpPort, udpPort, serverAddr, vpnnet)
 
-	_, err := newAuthServer(serverAddr, authPort)
+	_, err := newAuthServer(serverAddr, authPort, vpnnet)
 	if err != nil {
-		fmt.Printf("Failed to create AuthServer %v\n", err)
+		log.Errorf("Failed to create AuthServer %v", err)
 		return
 	}
 
-	_, err = newConnServer(serverAddr, tcpPort, udpPort, encryptedOutChan, encryptedInChan)
+	_, err = newConnServer(serverAddr, tcpPort, udpPort, eOut, eIn)
 	if err != nil {
-		fmt.Println("Failed to create ConnServer:", err)
+		log.Error("Failed to create ConnServer:", err)
 		return
 	}
 
-	//To be passed with a (Type *AuthServer), so that EncryptServer can access session secret.
-	_, err = newEncryptServer(encryptedOutChan, encryptedInChan, plainOutChan, plainInChan)
+	_, err = newEncryptServer(eOut, eIn, pOut, pIn)
 	if err != nil {
-		fmt.Println("Failed to create EncryptServer:", err)
+		log.Error("Failed to create EncryptServer:", err)
 		return
 	}
 
 	tun, err := water.NewTUN("")
 	if err != nil {
-		fmt.Println("Error creating tun interface", err)
+		log.Error("Error creating tun interface", err)
+		return
+	}
+	err = tunnel.AddAddr(tun, vpnnet)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+	err = tunnel.Bringup(tun)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+	err = SetNAT()
+	if err != nil {
+		log.Error(err)
 		return
 	}
 
-	b, err := newBookServer(plainOutChan, plainInChan, vpnnet, tun)
+	b, err := newBookServer(pOut, pIn, vpnnet, tun)
 	if err != nil {
-		fmt.Println("Failed to create BookServer:", err)
+		log.Error("Failed to create BookServer:", err)
 		return
 	}
 
@@ -71,7 +88,7 @@ func main() {
 		signal.Notify(c, os.Interrupt, os.Kill, syscall.SIGTERM)
 
 		s := <-c
-		fmt.Println("Received signal", errors.New(s.String()))
+		log.Notice("Received signal", errors.New(s.String()))
 	}()
 
 	b.start()

@@ -1,7 +1,7 @@
 MININET_NAME = tinyvpn_mininet
 TCPDUMP_NAME = tinyvpn_tcpdump
 CMD_START_OVS = service openvswitch-switch start
-CMD_START_MN = sudo mn --custom /projects/tinyvpn_topo.py --topo SimTopo
+CMD_START_MN = sudo mn --custom /projects/tinyvpn_topo.py --topo SimTopo --link tc1
 
 GO_BIN = ~/Projects/golang/bin
 SERVER = ../petrel/petrel
@@ -20,7 +20,7 @@ docker-tcpdump:
 	git clone https://github.com/jingqiuELE/docker-tcpdump.git
 
 run: clean start_container
-	docker exec $(MININET_NAME) mkdir /projects/tinyvpn
+	docker exec $(MININET_NAME) mkdir -p /projects/tinyvpn
 	docker cp $(SERVER) $(MININET_NAME):/projects/tinyvpn/
 	docker cp $(CLIENT) $(MININET_NAME):/projects/tinyvpn/
 	docker cp $(SERVER_START) $(MININET_NAME):/projects/tinyvpn/

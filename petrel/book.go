@@ -6,7 +6,6 @@ import (
 	"packet"
 	"session"
 	"sync"
-	"tunnel"
 
 	"github.com/codeskyblue/go-sh"
 	"github.com/songgao/water"
@@ -20,47 +19,29 @@ type Book struct {
 }
 
 type BookServer struct {
-	book   *Book
-	pOut   chan packet.Packet
-	pIn    chan packet.Packet
-	vpnnet string
-	tun    *water.Interface
+	book *Book
+	pOut chan packet.Packet
+	pIn  chan packet.Packet
+	tun  *water.Interface
 }
 
-func newBookServer(pOut, pIn chan packet.Packet, vpnnet string, tun *water.Interface) (*BookServer, error) {
-	var err error
-	bs := new(BookServer)
+func newBookServer(pOut, pIn chan packet.Packet, vpnnet string, tun *water.Interface) (bs *BookServer, err error) {
+	bs = new(BookServer)
 	bs.book = newBook()
 	bs.pOut = pOut
 	bs.pIn = pIn
-	bs.vpnnet = vpnnet
 	bs.tun = tun
-
-	return bs, err
+	return
 }
 
 func (bs *BookServer) start() {
-	err := tunnel.AddAddr(bs.tun, bs.vpnnet)
-	if err != nil {
-		return
-	}
-
-	err = tunnel.Bringup(bs.tun)
-	if err != nil {
-		return
-	}
-
-	err = SetNAT()
-	if err != nil {
-		return
-	}
 
 	go bs.listenTun()
 
 	for {
 		p, ok := <-bs.pOut
 		if !ok {
-			fmt.Println("Failed to read from pOut:")
+			log.Error("Failed to read from pOut:")
 			return
 		}
 		src_ip := waterutil.IPv4Source(p.Data)
@@ -80,7 +61,7 @@ func (bs *BookServer) listenTun() error {
 	for {
 		_, err := bs.tun.Read(buffer)
 		if err != nil {
-			fmt.Println("Error reading from tunnel.")
+			log.Error("Error reading from tunnel.")
 			return err
 		}
 		p := packet.NewPacket()
@@ -142,9 +123,9 @@ func SetNAT() error {
 	var err error
 	default_if, err := getDefaultRouteIf()
 	if err != nil {
-		fmt.Println("Cannot get the default routing interface")
+		log.Error("Cannot get the default routing interface")
 	} else {
-		fmt.Println("Default route interface is", default_if)
+		log.Error("Default route interface is", default_if)
 		err = sh.Command("iptables", "-t", "nat", "-A", "POSTROUTING", "-o", default_if, "-j", "MASQUERADE").Run()
 	}
 	return err

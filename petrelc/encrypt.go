@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"packet"
 	"session"
 )
@@ -12,7 +11,7 @@ func startEncrypt(eOut, eIn, pOut, pIn chan packet.Packet, sk session.Key) error
 		var eIn_ok, pOut_ok bool
 		for {
 			if !eIn_ok || !pOut_ok {
-				fmt.Println("channel closed!")
+				log.Notice("channel closed!")
 				return
 			}
 			select {
