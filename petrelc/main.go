@@ -54,13 +54,10 @@ func main() {
 		return
 	}
 
-	go func() {
-		c := make(chan os.Signal, 1)
-		signal.Notify(c, os.Interrupt, os.Kill, syscall.SIGTERM)
-		s := <-c
-		log.Notice("Received signal", errors.New(s.String()))
-	}()
-
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, os.Kill, syscall.SIGTERM)
+	s := <-c
+	log.Notice("Received signal", errors.New(s.String()))
 	log.Notice("process quit")
 
 	return
