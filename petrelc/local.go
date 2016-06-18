@@ -40,6 +40,7 @@ func handleTunOut(tun *water.Interface, pOut chan packet.Packet) {
 			return
 		}
 
+		log.Debug("received client packet:", buf[:n])
 		p := packet.NewPacket()
 		p.SetData(buf[:n])
 		pOut <- *p

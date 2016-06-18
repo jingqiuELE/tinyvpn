@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"github.com/op/go-logging"
 	flag "github.com/spf13/pflag"
 	"logger"
 	"os"
@@ -10,7 +11,7 @@ import (
 	"syscall"
 )
 
-var log = logger.Get()
+var log = logger.Get(logging.DEBUG)
 
 func main() {
 	const channelSize = 10

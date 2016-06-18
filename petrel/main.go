@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"github.com/op/go-logging"
 	"github.com/songgao/water"
 	"logger"
 	"os"
@@ -13,7 +14,7 @@ import (
 	flag "github.com/spf13/pflag"
 )
 
-var log = logger.Get()
+var log = logger.Get(logging.DEBUG)
 
 func main() {
 
