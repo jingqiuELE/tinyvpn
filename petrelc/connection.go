@@ -14,18 +14,11 @@ func startConnection(serverAddr string, port int, eOut, eIn chan packet.Packet) 
 		return err
 	}
 
-	laddr, err := net.ResolveUDPAddr("udp", "127.0.0.1:0")
+	conn, err := net.DialUDP("udp", nil, raddr)
 	if err != nil {
-		log.Error("Resolving localaddr:", err)
+		log.Error("Dial remote:", err)
 		return err
 	}
-
-	conn, err := net.DialUDP("udp", laddr, raddr)
-	if err != nil {
-		log.Error("Dail remote:", err)
-		return err
-	}
-	defer conn.Close()
 
 	go handleOut(conn, eOut)
 	go handleIn(conn, eIn)

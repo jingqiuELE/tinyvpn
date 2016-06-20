@@ -2,6 +2,7 @@ package packet
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"session"
@@ -33,8 +34,8 @@ func (p *Packet) SetData(data []byte) {
 }
 
 func UnmarshalSlice(buf []byte) (Packet, error) {
+	var err error
 	p := NewPacket()
-
 	p.Header.Iv = buf[:8]
 	p.Header.Sk = buf[8:14]
 
@@ -43,9 +44,10 @@ func UnmarshalSlice(buf []byte) (Packet, error) {
 
 	p.Data = buf[16:]
 	if len(p.Data) != int(p.Header.Len) {
-		fmt.Println("p.Len not equal to its data len!")
+		fmt.Println("p.Len not equal to its data len!", len(p.Data), p.Header.Len)
+		err = errors.New("p.Len not equal to its data len!")
 	}
-	return *p, nil
+	return *p, err
 }
 
 func MarshalToSlice(p Packet) []byte {
