@@ -201,5 +201,7 @@ func (c *ConnServer) readPacketFromUDP(u *net.UDPConn) (packet.Packet, error) {
 	c.connMap[*sk] = uc
 	c.Unlock()
 
+	log.Debug("packet received from UDP listener:", p.Header.Iv, p.Header.Sk, p.Header.Len)
+
 	return p, err
 }

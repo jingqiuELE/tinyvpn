@@ -2,6 +2,7 @@ package packet
 
 import (
 	"bytes"
+	"crypto/rand"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -12,8 +13,8 @@ const IvLen = 8
 
 /* Fixed size PacketHeader */
 type PacketHeader struct {
-	Iv  [session.KeyLen]byte
-	Sk  [IvLen]byte
+	Iv  [IvLen]byte
+	Sk  session.Key
 	Len uint16
 }
 
@@ -25,6 +26,16 @@ type Packet struct {
 func NewPacket() *Packet {
 	p := new(Packet)
 	return p
+}
+
+func NewIv() ([IvLen]byte, error) {
+	var iv [IvLen]byte
+	_, err := rand.Read(iv[:])
+	if err != nil {
+		fmt.Println("Error:", err)
+		return iv, err
+	}
+	return iv, err
 }
 
 func (p *Packet) SetData(data []byte) {

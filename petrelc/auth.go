@@ -10,7 +10,7 @@ import (
 
 const BUFFERSIZE = 1500
 
-func authGetSession(serverAddr string, port int) (sk session.Key, ip net.IP, err error) {
+func authGetSession(serverAddr string, port int) (sk session.Key, ss session.Secret, ip net.IP, err error) {
 	authServer := serverAddr + ":" + strconv.Itoa(port)
 	raddr, err := net.ResolveTCPAddr("tcp", authServer)
 	if err != nil {
@@ -41,10 +41,18 @@ func authGetSession(serverAddr string, port int) (sk session.Key, ip net.IP, err
 		}
 	}
 
-	if n >= (session.KeyLen + net.IPv4len) {
-		copy(sk[:], buf[:session.KeyLen])
-		ip = net.IPv4(buf[session.KeyLen], buf[session.KeyLen+1],
-			buf[session.KeyLen+2], buf[session.KeyLen+3])
+	if n >= (session.KeyLen + session.SecretLen + net.IPv4len) {
+		prev := 0
+		next := session.KeyLen
+		copy(sk[:], buf[prev:next])
+
+		prev = next
+		next += session.SecretLen
+		copy(ss[:], buf[prev:next])
+
+		prev = next
+		ip = net.IPv4(buf[prev], buf[prev+1],
+			buf[prev+2], buf[prev+3])
 	}
 
 	log.Info("Assigned IP address:", ip.String())

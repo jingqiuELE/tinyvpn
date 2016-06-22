@@ -5,8 +5,9 @@ import (
 	"session"
 )
 
-func startEncrypt(eOut, eIn, pOut, pIn chan packet.Packet, sk session.Key) error {
+func startEncrypt(eOut, eIn, pOut, pIn chan packet.Packet, sk session.Key, secret session.Secret) (err error) {
 	var p packet.Packet
+
 	eIn_ok := true
 	pOut_ok := true
 	go func() {
@@ -19,9 +20,14 @@ func startEncrypt(eOut, eIn, pOut, pIn chan packet.Packet, sk session.Key) error
 			case p, eIn_ok = <-eIn:
 				pIn <- p
 			case p, pOut_ok = <-pOut:
+				p.Header.Iv, err = packet.NewIv()
+				if err != nil {
+					log.Error(err)
+				}
+				p.Header.Sk = sk
 				eOut <- p
 			}
 		}
 	}()
-	return nil
+	return
 }
