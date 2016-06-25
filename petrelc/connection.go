@@ -26,6 +26,7 @@ func startConnection(serverAddr string, port int, eOut, eIn chan packet.Packet) 
 	return err
 }
 
+/* traffic from client to target */
 func handleOut(conn *net.UDPConn, eOut chan packet.Packet) {
 	for {
 		p := <-eOut
@@ -42,6 +43,7 @@ func handleOut(conn *net.UDPConn, eOut chan packet.Packet) {
 	}
 }
 
+/* traffic from target to client */
 func handleIn(conn *net.UDPConn, eIn chan packet.Packet) {
 	buf := make([]byte, BUFFERSIZE)
 	for {
@@ -50,6 +52,8 @@ func handleIn(conn *net.UDPConn, eIn chan packet.Packet) {
 			log.Error("Read from Connection:", err)
 			continue
 		}
+
+		log.Debug("Connection handleIn:", buf[:n])
 
 		p, err := packet.UnmarshalFromSlice(buf[:n])
 		if err != nil {

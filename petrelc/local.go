@@ -52,11 +52,6 @@ func handleTunOut(tun *water.Interface, pOut chan packet.Packet) {
 func handleTunIn(tun *water.Interface, pIn chan packet.Packet) {
 	for {
 		p := <-pIn
-		buf, err := packet.MarshalToSlice(p)
-		if err != nil {
-			log.Error("Failed to marshal packet to slice.")
-			continue
-		}
-		tun.Write(buf)
+		tun.Write(p.Data)
 	}
 }
