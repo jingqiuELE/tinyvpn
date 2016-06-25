@@ -5,6 +5,11 @@ import (
 	"session"
 )
 
+/*
+Direction:
+Out: from client to target
+In: from target to client
+*/
 func startEncrypt(eOut, eIn, pOut, pIn chan packet.Packet, sk session.Key, secret session.Secret) (err error) {
 	var p packet.Packet
 
