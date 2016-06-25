@@ -30,8 +30,13 @@ type Connection interface {
 var ProxyConn *net.UDPConn
 
 func (u UConnection) writePacket(p packet.Packet) error {
-	buf := packet.MarshalToSlice(p)
-	_, err := ProxyConn.WriteToUDP(buf, u.UDPAddr)
+	buf, err := packet.MarshalToSlice(p)
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+
+	_, err = ProxyConn.WriteToUDP(buf, u.UDPAddr)
 	if err != nil {
 		log.Error("Failed to write Packet to UDP client:", err)
 	}
@@ -164,7 +169,7 @@ func (c *ConnServer) handleTCPConn(conn *net.TCPConn) error {
 }
 
 func readPacketFromTCP(t *net.TCPConn) (packet.Packet, error) {
-	p, err := packet.UnmarshalStream(t)
+	p, err := packet.UnmarshalFromStream(t)
 	if err != nil {
 		log.Error("UnmarshalFromStream failed:", err)
 	}
@@ -174,13 +179,13 @@ func readPacketFromTCP(t *net.TCPConn) (packet.Packet, error) {
 func (c *ConnServer) readPacketFromUDP(u *net.UDPConn) (packet.Packet, error) {
 	var p packet.Packet
 	buf := make([]byte, BUFFERSIZE)
-	_, cliaddr, err := u.ReadFromUDP(buf)
+	n, cliaddr, err := u.ReadFromUDP(buf)
 	if err != nil {
 		log.Error("reading from ", cliaddr.String(), err)
 		return p, err
 	}
 
-	p, err = packet.UnmarshalSlice(buf)
+	p, err = packet.UnmarshalFromSlice(buf[:n])
 	if err != nil {
 		log.Error("creating Packet from buffer:", err)
 		return p, err
@@ -195,6 +200,8 @@ func (c *ConnServer) readPacketFromUDP(u *net.UDPConn) (packet.Packet, error) {
 	c.Lock()
 	c.connMap[*sk] = uc
 	c.Unlock()
+
+	log.Debug("packet received from UDP listener:", p.Header.Iv, p.Header.Sk, p.Header.Len)
 
 	return p, err
 }

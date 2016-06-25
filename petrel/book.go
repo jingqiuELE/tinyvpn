@@ -36,34 +36,41 @@ func (bs *BookServer) start() {
 	go bs.listenTun()
 
 	for {
-		p, ok := <-bs.pOut
+		p, ok := <-bs.pIn
 		if !ok {
-			log.Error("Failed to read from pOut:")
+			log.Error("Failed to read from pIn:")
 			return
 		}
 		src_ip := waterutil.IPv4Source(p.Data)
+		log.Debug("BookServer: handling for client", src_ip)
 
-		sk := new(session.Key)
-		copy(sk[:], p.Header.Sk[:session.KeyLen])
-		bs.book.Add(src_ip.String(), *sk)
+		bs.book.Add(src_ip.String(), p.Header.Sk)
 		bs.tun.Write(p.Data)
 	}
 }
 
 const BUFFERSIZE = 1500
 
-/* Handle internet traffic for the vpnnet */
+/* Handle traffic from target to client */
 func (bs *BookServer) listenTun() error {
 	buffer := make([]byte, BUFFERSIZE)
 	for {
-		_, err := bs.tun.Read(buffer)
+		n, err := bs.tun.Read(buffer)
 		if err != nil {
 			log.Error("Error reading from tunnel.")
 			return err
 		}
+
+		dst_ip := waterutil.IPv4Destination(buffer[:n])
+		log.Debug("Book: to client", dst_ip)
+
+		sk := bs.book.getSession(dst_ip.String())
+		log.Debug("Book: got session", sk)
+
 		p := packet.NewPacket()
-		p.SetData(buffer)
-		bs.pIn <- *p
+		p.Header.Sk = sk
+		p.SetData(buffer[:n])
+		bs.pOut <- *p
 	}
 }
 

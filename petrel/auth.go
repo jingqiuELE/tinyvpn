@@ -92,6 +92,7 @@ func (a *AuthServer) handleAuthConn(conn *net.TCPConn) error {
 		log.Error("Failed to create new Key:", err)
 		return err
 	}
+	log.Debug("session key:", sk)
 
 	secret, err := session.NewSecret()
 	if err != nil {
@@ -109,7 +110,9 @@ func (a *AuthServer) handleAuthConn(conn *net.TCPConn) error {
 	}
 	assignIP := ip.IP.To4()
 
-	buf = append((*sk)[:], assignIP...)
+	/* buf should hold sk, secret and assigned ip address. */
+	buf = append((*sk)[:], (*secret)[:]...)
+	buf = append(buf[:], assignIP...)
 	_, err = conn.Write(buf)
 	if err != nil {
 		log.Error("Failed to sendback response:", err)

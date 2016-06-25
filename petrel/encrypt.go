@@ -40,6 +40,7 @@ func (e *EncryptServer) start() {
 		case p, eIn_ok = <-e.eIn:
 			e.pIn <- p
 		case p, pOut_ok = <-e.pOut:
+			p.Header.Iv, _ = packet.NewIv()
 			e.eOut <- p
 		}
 	}

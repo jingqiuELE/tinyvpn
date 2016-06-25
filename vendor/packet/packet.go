@@ -1,8 +1,9 @@
 package packet
 
 import (
+	"bytes"
+	"crypto/rand"
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"io"
 	"session"
@@ -10,10 +11,11 @@ import (
 
 const IvLen = 8
 
+/* Fixed size PacketHeader */
 type PacketHeader struct {
-	Iv  []byte //8 bytes slice
-	Sk  []byte //6 bytes slice
-	Len uint16 //2 bytes
+	Iv  [IvLen]byte
+	Sk  session.Key
+	Len uint16
 }
 
 type Packet struct {
@@ -23,9 +25,17 @@ type Packet struct {
 
 func NewPacket() *Packet {
 	p := new(Packet)
-	p.Header.Iv = make([]byte, IvLen)
-	p.Header.Sk = make([]byte, session.KeyLen)
 	return p
+}
+
+func NewIv() ([IvLen]byte, error) {
+	var iv [IvLen]byte
+	_, err := rand.Read(iv[:])
+	if err != nil {
+		fmt.Println("Error:", err)
+		return iv, err
+	}
+	return iv, err
 }
 
 func (p *Packet) SetData(data []byte) {
@@ -33,46 +43,28 @@ func (p *Packet) SetData(data []byte) {
 	p.Data = data
 }
 
-func UnmarshalSlice(buf []byte) (Packet, error) {
-	var err error
-	p := NewPacket()
-	p.Header.Iv = buf[:8]
-	p.Header.Sk = buf[8:14]
-
-	dlen := buf[14:16]
-	p.Header.Len = uint16(dlen[0])*256 + uint16(dlen[1])
-
-	p.Data = buf[16:]
-	if len(p.Data) != int(p.Header.Len) {
-		fmt.Println("p.Len not equal to its data len!", len(p.Data), p.Header.Len)
-		err = errors.New("p.Len not equal to its data len!")
-	}
-	return *p, err
+func UnmarshalFromSlice(buf []byte) (Packet, error) {
+	reader := bytes.NewReader(buf)
+	return UnmarshalFromStream(reader)
 }
 
-func MarshalToSlice(p Packet) []byte {
-	buf := p.Header.Iv
-	buf = append(buf, p.Header.Sk...)
-
-	dlen := make([]byte, 2)
-	dlen[0] = byte(p.Header.Len / 256)
-	dlen[1] = byte(p.Header.Len % 256)
-
-	buf = append(buf, dlen...)
-	buf = append(buf, p.Data...)
-	return buf
+func MarshalToSlice(p Packet) ([]byte, error) {
+	buf := new(bytes.Buffer)
+	err := MarshalToStream(p, buf)
+	return buf.Bytes(), err
 }
 
-func UnmarshalStream(s io.Reader) (Packet, error) {
+func UnmarshalFromStream(r io.Reader) (Packet, error) {
 	p := NewPacket()
 
-	err := binary.Read(s, binary.BigEndian, &p.Header)
+	err := binary.Read(r, binary.BigEndian, &p.Header)
 	if err != nil {
 		fmt.Println("binary read Packet Header failed:", err)
+		return *p, err
 	}
 
 	p.Data = make([]byte, p.Header.Len)
-	err = binary.Read(s, binary.BigEndian, &p.Data)
+	err = binary.Read(r, binary.BigEndian, &p.Data)
 	if err != nil {
 		fmt.Println("binary read Packet Data failed:", err)
 	}
@@ -80,10 +72,16 @@ func UnmarshalStream(s io.Reader) (Packet, error) {
 	return *p, err
 }
 
-func MarshalToStream(p Packet, writer io.Writer) error {
-	err := binary.Write(writer, binary.BigEndian, p)
+func MarshalToStream(p Packet, w io.Writer) error {
+	err := binary.Write(w, binary.BigEndian, p.Header)
 	if err != nil {
-		fmt.Println("binary write Packet to stream failed:", err)
+		fmt.Println("binary write Packet Header to stream failed:", err)
+		return err
+	}
+
+	err = binary.Write(w, binary.BigEndian, p.Data)
+	if err != nil {
+		fmt.Println("binary read Packet Data failed:", err)
 	}
 	return err
 }

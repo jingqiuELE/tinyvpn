@@ -31,6 +31,7 @@ func startListenTun(pIn, pOut chan packet.Packet, ip net.IP) error {
 	return err
 }
 
+/* handle traffic from client to target */
 func handleTunOut(tun *water.Interface, pOut chan packet.Packet) {
 	buf := make([]byte, BUFFERSIZE)
 	for {
@@ -47,10 +48,10 @@ func handleTunOut(tun *water.Interface, pOut chan packet.Packet) {
 	}
 }
 
+/* handle traffic from target to client. */
 func handleTunIn(tun *water.Interface, pIn chan packet.Packet) {
 	for {
 		p := <-pIn
-		buf := packet.MarshalToSlice(p)
-		tun.Write(buf)
+		tun.Write(p.Data)
 	}
 }

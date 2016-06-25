@@ -26,17 +26,24 @@ func startConnection(serverAddr string, port int, eOut, eIn chan packet.Packet) 
 	return err
 }
 
+/* traffic from client to target */
 func handleOut(conn *net.UDPConn, eOut chan packet.Packet) {
 	for {
 		p := <-eOut
-		buf := packet.MarshalToSlice(p)
-		_, err := conn.Write(buf)
+		buf, err := packet.MarshalToSlice(p)
+		if err != nil {
+			log.Error("Failed to marshal packet:", err)
+			continue
+		}
+
+		_, err = conn.Write(buf)
 		if err != nil {
 			log.Error("Writing to Connection:", err)
 		}
 	}
 }
 
+/* traffic from target to client */
 func handleIn(conn *net.UDPConn, eIn chan packet.Packet) {
 	buf := make([]byte, BUFFERSIZE)
 	for {
@@ -46,7 +53,9 @@ func handleIn(conn *net.UDPConn, eIn chan packet.Packet) {
 			continue
 		}
 
-		p, err := packet.UnmarshalSlice(buf[:n])
+		log.Debug("Connection handleIn:", buf[:n])
+
+		p, err := packet.UnmarshalFromSlice(buf[:n])
 		if err != nil {
 			log.Error("Failed to unmarshal data:", err)
 			continue

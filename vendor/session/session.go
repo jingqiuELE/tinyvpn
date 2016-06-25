@@ -6,9 +6,10 @@ import (
 )
 
 const KeyLen = 6
+const SecretLen = 32
 
 type Key [KeyLen]byte
-type Secret [32]byte
+type Secret [SecretLen]byte
 
 func NewKey() (*Key, error) {
 	k := new(Key)

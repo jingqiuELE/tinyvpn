@@ -31,7 +31,7 @@ func main() {
 	flag.IntVarP(&udpPort, "udp", "u", 8272, "UDP port of connServer")
 	flag.Parse()
 
-	sk, ip, err := authGetSession(serverAddr, authPort)
+	sk, secret, ip, err := authGetSession(serverAddr, authPort)
 	if err != nil {
 		log.Error("Failed to auth myself:", err)
 		return
@@ -43,7 +43,7 @@ func main() {
 		return
 	}
 
-	err = startEncrypt(eOut, eIn, pOut, pIn, sk)
+	err = startEncrypt(eOut, eIn, pOut, pIn, sk, secret)
 	if err != nil {
 		log.Error("Failed to create EncryptServer:", err)
 		return
