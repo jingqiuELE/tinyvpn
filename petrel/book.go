@@ -1,12 +1,15 @@
 package main
 
 import (
-	"github.com/codeskyblue/go-sh"
-	"github.com/songgao/water"
-	"github.com/songgao/water/waterutil"
+	"fmt"
+	"net"
 	"packet"
 	"session"
 	"sync"
+
+	"github.com/codeskyblue/go-sh"
+	"github.com/songgao/water"
+	"github.com/songgao/water/waterutil"
 )
 
 type Book struct {
@@ -61,7 +64,15 @@ func (bs *BookServer) listenTun() error {
 			return err
 		}
 
-		dst_ip := waterutil.IPv4Destination(buffer[:n])
+		var dst_ip net.IP
+		if waterutil.IsIPv4(buffer) {
+			dst_ip = waterutil.IPv4Destination(buffer[:n])
+		} else if waterutil.IsIPv6(buffer) {
+			// Water does not handle IPv6 packet destination yet or IPv6 works totally different?
+			fmt.Errorf("IPv6 packet cannot be properly handled atm.")
+		} else {
+			panic("Packet not of IPv4 nor IPv6")
+		}
 		log.Debug("Book: to client", dst_ip)
 
 		sk := bs.book.getSession(dst_ip.String())
