@@ -1,4 +1,4 @@
-package petrel
+package encrypt
 
 import (
 	"crypto/aes"
@@ -58,14 +58,14 @@ func EncryptPacket(p *packet.Packet, key []byte) error {
 		return err
 	}
 
-	p.Header.Iv = iv
+	copy(p.Header.Iv[:], iv)
 	p.Data = encData
 
 	return nil
 }
 
 func DecryptPacket(p *packet.Packet, key []byte) error {
-	decData, err := Decrypt(key, p.Header.Iv, p.Data)
+	decData, err := Decrypt(key, p.Header.Iv[:], p.Data)
 	if err != nil {
 		return err
 	}
