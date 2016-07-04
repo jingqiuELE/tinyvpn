@@ -10,7 +10,7 @@ import (
 
 type ConnServer struct {
 	sync.RWMutex
-	connMap map[session.Key]Connection
+	connMap map[session.Index]Connection
 	eout    chan packet.Packet
 	ein     chan packet.Packet
 }
@@ -54,7 +54,7 @@ func (t TConnection) writePacket(p packet.Packet) error {
 func newConnServer(serverIP string, tcpPort int, udpPort int,
 	eout chan packet.Packet, ein chan packet.Packet) (*ConnServer, error) {
 	c := new(ConnServer)
-	c.connMap = make(map[session.Key]Connection)
+	c.connMap = make(map[session.Index]Connection)
 	c.eout = eout
 	c.ein = ein
 
@@ -77,7 +77,7 @@ func newConnServer(serverIP string, tcpPort int, udpPort int,
 	go func() {
 		for {
 			p := <-c.eout
-			sk, err := session.NewKey()
+			sk, err := session.NewIndex()
 			if err != nil {
 				continue
 			}
@@ -157,7 +157,7 @@ func (c *ConnServer) handleTCPConn(conn *net.TCPConn) error {
 	t := new(TConnection)
 	t.TCPConn = conn
 
-	sk := new(session.Key)
+	sk := new(session.Index)
 	copy(sk[:], p.Header.Sk[:])
 
 	c.Lock()
@@ -194,7 +194,7 @@ func (c *ConnServer) readPacketFromUDP(u *net.UDPConn) (packet.Packet, error) {
 	uc := new(UConnection)
 	uc.UDPAddr = cliaddr
 
-	sk := new(session.Key)
+	sk := new(session.Index)
 	copy(sk[:], p.Header.Sk[:])
 
 	c.Lock()

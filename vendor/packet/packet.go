@@ -14,7 +14,7 @@ const IvLen = 8
 /* Fixed size PacketHeader */
 type PacketHeader struct {
 	Iv  [IvLen]byte
-	Sk  session.Key
+	Sk  session.Index
 	Len uint16
 }
 

@@ -10,7 +10,7 @@ import (
 
 const BUFFERSIZE = 1500
 
-func authGetSession(serverAddr string, port int) (sk session.Key, ss session.Secret, ip net.IP, err error) {
+func authGetSession(serverAddr string, port int) (sk session.Index, ss session.Secret, ip net.IP, err error) {
 	authServer := serverAddr + ":" + strconv.Itoa(port)
 	raddr, err := net.ResolveTCPAddr("tcp", authServer)
 	if err != nil {
@@ -41,9 +41,9 @@ func authGetSession(serverAddr string, port int) (sk session.Key, ss session.Sec
 		}
 	}
 
-	if n >= (session.KeyLen + session.SecretLen + net.IPv4len) {
+	if n >= (session.IndexLen + session.SecretLen + net.IPv4len) {
 		prev := 0
-		next := session.KeyLen
+		next := session.IndexLen
 		copy(sk[:], buf[prev:next])
 
 		prev = next

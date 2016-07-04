@@ -20,7 +20,7 @@ func Test_MarshalPacket(t *testing.T) {
 		return
 	}
 
-	sk, err := session.NewKey()
+	sk, err := session.NewIndex()
 	if err != nil {
 		t.Error(err)
 		return

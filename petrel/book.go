@@ -11,8 +11,8 @@ import (
 
 type Book struct {
 	sync.RWMutex
-	ipToSession map[string]session.Key
-	sessionToIp map[session.Key]string
+	ipToSession map[string]session.Index
+	sessionToIp map[session.Index]string
 }
 
 type BookServer struct {
@@ -76,28 +76,28 @@ func (bs *BookServer) listenTun() error {
 
 func newBook() *Book {
 	b := new(Book)
-	b.ipToSession = make(map[string]session.Key)
-	b.sessionToIp = make(map[session.Key]string)
+	b.ipToSession = make(map[string]session.Index)
+	b.sessionToIp = make(map[session.Index]string)
 	return b
 }
-func (b *Book) getSession(ip string) session.Key {
+func (b *Book) getSession(ip string) session.Index {
 	b.RLock()
 	key := b.ipToSession[ip]
 	b.RUnlock()
 	return key
 }
 
-func (b *Book) getIp(sessionKey session.Key) string {
+func (b *Book) getIp(sessionIndex session.Index) string {
 	b.RLock()
-	ip := b.sessionToIp[sessionKey]
+	ip := b.sessionToIp[sessionIndex]
 	b.RUnlock()
 	return ip
 }
 
-func (b *Book) Add(ip string, sessionKey session.Key) {
+func (b *Book) Add(ip string, sessionIndex session.Index) {
 	b.Lock()
-	b.ipToSession[ip] = sessionKey
-	b.sessionToIp[sessionKey] = ip
+	b.ipToSession[ip] = sessionIndex
+	b.sessionToIp[sessionIndex] = ip
 	b.Unlock()
 }
 
