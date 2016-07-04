@@ -2,9 +2,39 @@ TinyVPN
 =======
 Code named petrel.
 
-Server Architecture
+Petrel Server Architecture
 -------------------
-![Architecture Diagram](TinyVPN.png)
+
+                             +-------------------+  Set    +----------------------+
+                AuthPort     |                   +--------->    secretMap         |
+      +---------------------->   Authentication  |         +----------+-----------+
+      |                      |                   |         |  session |  session  |          +----------+
+      |                      +-------------------+         |   Index  |  Secret   |          |   tun    |
+      |                                                    +----------+-+---------+          +----+-^---+
+      |                                                                 |                         | |
+      |                                                                 |Get                      Data
+      |                                                                 |                         | |
+      |                     +--------------------+           +--------------------+               | |
+      |                     |                    |           |          |         |         +-----v-+------------+
+      |                     |                    |   eIn     |  +-------v-----+   |  pIn    |                    |
++-----v----+    ConnPort    |                    +-------------->  Decryption +------------->                    |
+|   Wan    <---------------->    Connection      |           |  +-------------+   |         |      BookSer^er    |
++----------+                |    (TCP,UDP,ANY)   |           |                    |         |                    |
+                            |                    |           |                    |         |                    |
+                            |                    |   eOut    |  +-------------+   |  pOut   |                    |
+                            |                    <--------------+  Encrytion  <-------------+                    |
+                            |                    |           |  +-------------+   |         +-------^------------+
+                            +--------^-----------+           +--------------------+                 |Set/Get
+                                     |                                              +----------------------------------+
+                                     |Set/Get                                       |                                  |
+                                     |                               +--------------v-------------+    +---------------v-------------+
+                            +--------v-------------+                 |      ipToSession           |    |    sessionToIp              |
+                            |      connMap         |                 +-------------+--------------+    +---------------+-------------+
+                            +---------+------------+                 | ip.String() | session.Index|    | session.Index | ip.String() |
+                            | session | Connection |                 +-------------+--------------+    +---------------+-------------+
+                            |  Index  |            |
+                            +---------+------------+
+
 ### Logic Layers
 1. Authentication Service: 
     1. Exchange username and password for session key
