@@ -2,8 +2,10 @@ TinyVPN
 =======
 Code named petrel.
 
-Petrel Server Architecture
+Petrel Architecture
 -------------------
+### Server:
+
 
                          Set      +----------------------+
                       +----------->    secretMap         |    +----------+
@@ -33,7 +35,23 @@ Petrel Server Architecture
                                           | | session.Index | ip.String() | |
                                           | +-----------------------------+ |
                                           +---------------------------------+
-        
+### Client:        
+
+    
+                                                             +--------+
+                                                             |  apps  |
+                +---------+      session                     +---^-+--+
+       +------> |  Auth   +-------------------+                  | |
+       +        +---------+                   |                 Data
+     auth                           +---------------+            | |
+       +        +-------------+ eIn | +-------v-----+ | pIn  +---+-v----+
+       |        |             +-----> |  Decryption +-------->          |
+    +--v--+ data| ConnServer  |     | +-------------+ |      |   tun    |
+    | Wan <-----> (TCP,UDP)   | eOut| +-------------+ | pOut |          |
+    +-----+     |             <-----+ |  Encrytion  <--------+          |
+                +-------------+     | +-------------+ |      +----------+
+                                    +-----------------+
+
 ### Logic Layers
 1. Authentication Service: 
     1. Exchange username and password for session key
