@@ -1,18 +1,22 @@
 package main
 
 import (
+	"encrypt"
 	"packet"
+	"session"
 )
 
 type EncryptServer struct {
+	auth *AuthServer
 	eOut chan packet.Packet
 	eIn  chan packet.Packet
 	pOut chan packet.Packet
 	pIn  chan packet.Packet
 }
 
-func newEncryptServer(eOut, eIn, pOut, pIn chan packet.Packet) (*EncryptServer, error) {
+func newEncryptServer(a *AuthServer, eOut, eIn, pOut, pIn chan packet.Packet) (*EncryptServer, error) {
 	e := new(EncryptServer)
+	e.auth = a
 	e.eOut = eOut
 	e.eIn = eIn
 	e.pOut = pOut
@@ -29,8 +33,13 @@ Out -> from target to client
 */
 func (e *EncryptServer) start() {
 	var p packet.Packet
+	var secret session.Secret
+	var ok bool
+	var err error
+
 	eIn_ok := true
 	pOut_ok := true
+
 	for {
 		if !eIn_ok || !pOut_ok {
 			log.Notice("channel closed!")
@@ -38,9 +47,28 @@ func (e *EncryptServer) start() {
 		}
 		select {
 		case p, eIn_ok = <-e.eIn:
+			secret, ok = e.auth.getSecret(p.Header.Sk)
+			if ok != true {
+				log.Error("eIn:Unknown session Index! skipping packet...")
+				continue
+			}
+			err = encrypt.DecryptPacket(&p, secret[:])
+			if err != nil {
+				log.Error(err)
+			}
 			e.pIn <- p
 		case p, pOut_ok = <-e.pOut:
-			p.Header.Iv, _ = packet.NewIv()
+			iv, _ := packet.NewIv()
+			p.Header.Iv = *iv
+			secret, ok = e.auth.getSecret(p.Header.Sk)
+			if ok != true {
+				log.Error("pOut:Unknown session Index! skipping packet...")
+				continue
+			}
+			err = encrypt.EncryptPacket(&p, secret[:])
+			if err != nil {
+				log.Error(err)
+			}
 			e.eOut <- p
 		}
 	}

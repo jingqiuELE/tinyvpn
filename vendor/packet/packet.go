@@ -9,11 +9,13 @@ import (
 	"session"
 )
 
-const IvLen = 8
+const IvLen = 4
 
-/* Fixed size PacketHeader */
+type Iv [IvLen]byte
+
+/* Fixed-size PacketHeader to ease marshal and unmarshal */
 type PacketHeader struct {
-	Iv  [IvLen]byte
+	Iv  Iv
 	Sk  session.Index
 	Len uint16
 }
@@ -28,12 +30,11 @@ func NewPacket() *Packet {
 	return p
 }
 
-func NewIv() ([IvLen]byte, error) {
-	var iv [IvLen]byte
+func NewIv() (*Iv, error) {
+	iv := new(Iv)
 	_, err := rand.Read(iv[:])
 	if err != nil {
 		fmt.Println("Error:", err)
-		return iv, err
 	}
 	return iv, err
 }

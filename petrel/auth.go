@@ -100,9 +100,7 @@ func (a *AuthServer) handleAuthConn(conn *net.TCPConn) error {
 		return err
 	}
 
-	a.Lock()
-	a.secretMap[*sk] = *secret
-	a.Unlock()
+	a.setSecret(*sk, *secret)
 
 	ip, err := a.ipAddrPool.Get()
 	if err != nil {
@@ -119,4 +117,17 @@ func (a *AuthServer) handleAuthConn(conn *net.TCPConn) error {
 		return err
 	}
 	return err
+}
+
+func (a *AuthServer) setSecret(sk session.Index, secret session.Secret) {
+	a.Lock()
+	a.secretMap[sk] = secret
+	a.Unlock()
+}
+
+func (a *AuthServer) getSecret(sk session.Index) (session.Secret, bool) {
+	a.RLock()
+	secret, ok := a.secretMap[sk]
+	a.RUnlock()
+	return secret, ok
 }

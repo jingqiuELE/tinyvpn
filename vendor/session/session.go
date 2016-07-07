@@ -16,7 +16,6 @@ func NewIndex() (*Index, error) {
 	_, err := rand.Read(k[:])
 	if err != nil {
 		fmt.Println("Error:", err)
-		return k, err
 	}
 	return k, err
 }

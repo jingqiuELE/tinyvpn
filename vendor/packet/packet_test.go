@@ -14,11 +14,12 @@ func Test_MarshalPacket(t *testing.T) {
 	var err error
 
 	p := NewPacket()
-	p.Header.Iv, err = NewIv()
+	iv, err := NewIv()
 	if err != nil {
 		t.Error(err)
 		return
 	}
+	p.Header.Iv = *iv
 
 	sk, err := session.NewIndex()
 	if err != nil {
