@@ -53,11 +53,11 @@ func (t TConnection) writePacket(p packet.Packet) error {
 
 func newConnServer(serverIP string, tcpPort int, udpPort int,
 	eOut chan packet.Packet, eIn chan packet.Packet) (*ConnServer, error) {
-
-	c := new(ConnServer)
-	c.connMap = make(map[session.Index]Connection)
-	c.eOut = eOut
-	c.eIn = eIn
+	c := &ConnServer{
+		connMap: make(map[session.Index]Connection),
+		eOut:    eOut,
+		eIn:     eIn,
+	}
 
 	if tcpPort != 0 {
 		err := c.startTCPListener(serverIP, tcpPort)

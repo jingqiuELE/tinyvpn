@@ -15,12 +15,13 @@ type EncryptServer struct {
 }
 
 func newEncryptServer(a *AuthServer, eOut, eIn, pOut, pIn chan packet.Packet) (*EncryptServer, error) {
-	e := new(EncryptServer)
-	e.auth = a
-	e.eOut = eOut
-	e.eIn = eIn
-	e.pOut = pOut
-	e.pIn = pIn
+	e := &EncryptServer{
+		auth: a,
+		eOut: eOut,
+		eIn:  eIn,
+		pOut: pOut,
+		pIn:  pIn,
+	}
 
 	go e.start()
 	return e, nil

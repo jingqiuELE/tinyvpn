@@ -23,11 +23,12 @@ type BookServer struct {
 }
 
 func newBookServer(pOut, pIn chan packet.Packet, vpnnet string, tun *water.Interface) (bs *BookServer, err error) {
-	bs = new(BookServer)
-	bs.book = newBook()
-	bs.pOut = pOut
-	bs.pIn = pIn
-	bs.tun = tun
+	bs = &BookServer{
+		book: newBook(),
+		pOut: pOut,
+		pIn:  pIn,
+		tun:  tun,
+	}
 	return
 }
 
