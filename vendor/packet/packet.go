@@ -2,7 +2,6 @@ package packet
 
 import (
 	"bytes"
-	"crypto/rand"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -28,15 +27,6 @@ type Packet struct {
 func NewPacket() *Packet {
 	p := new(Packet)
 	return p
-}
-
-func NewIv() (*Iv, error) {
-	iv := new(Iv)
-	_, err := rand.Read(iv[:])
-	if err != nil {
-		fmt.Println("Error:", err)
-	}
-	return iv, err
 }
 
 func (p *Packet) SetData(data []byte) {

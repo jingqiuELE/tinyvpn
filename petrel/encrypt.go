@@ -59,8 +59,6 @@ func (e *EncryptServer) start() {
 			}
 			e.pIn <- p
 		case p, pOut_ok = <-e.pOut:
-			iv, _ := packet.NewIv()
-			p.Header.Iv = *iv
 			secret, ok = e.auth.getSecret(p.Header.Sk)
 			if ok != true {
 				log.Error("pOut:Unknown session Index! skipping packet...")

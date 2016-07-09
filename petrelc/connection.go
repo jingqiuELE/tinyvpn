@@ -30,15 +30,12 @@ func startConnection(serverAddr string, port int, eOut, eIn chan packet.Packet) 
 func handleOut(conn *net.UDPConn, eOut chan packet.Packet) {
 	for {
 		p := <-eOut
-		log.Debug("client conn: iv:", p.Header.Iv[:])
-		log.Debug("client conn: sk:", p.Header.Sk[:])
 		buf, err := packet.MarshalToSlice(p)
 		if err != nil {
 			log.Error("Failed to marshal packet:", err)
 			continue
 		}
 
-		log.Debug("client conn: buf:", buf)
 		_, err = conn.Write(buf)
 		if err != nil {
 			log.Error("Writing to Connection:", err)
@@ -55,8 +52,6 @@ func handleIn(conn *net.UDPConn, eIn chan packet.Packet) {
 			log.Error("Read from Connection:", err)
 			continue
 		}
-
-		log.Debug("Connection handleIn:", buf[:n])
 
 		p, err := packet.UnmarshalFromSlice(buf[:n])
 		if err != nil {

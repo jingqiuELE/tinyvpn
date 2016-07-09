@@ -185,8 +185,6 @@ func (c *ConnServer) readPacketFromUDP(u *net.UDPConn) (packet.Packet, error) {
 		return p, err
 	}
 
-	log.Debug("server: conn recv:", buf[:n])
-
 	p, err = packet.UnmarshalFromSlice(buf[:n])
 	if err != nil {
 		log.Error("creating Packet from buffer:", err)
@@ -200,8 +198,6 @@ func (c *ConnServer) readPacketFromUDP(u *net.UDPConn) (packet.Packet, error) {
 	c.Lock()
 	c.connMap[sk] = uc
 	c.Unlock()
-
-	log.Debug("server: packet received:", p.Header.Iv, p.Header.Sk, p.Header.Len)
 
 	return p, err
 }

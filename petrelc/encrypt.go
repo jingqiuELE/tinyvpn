@@ -30,15 +30,7 @@ func startEncrypt(eOut, eIn, pOut, pIn chan packet.Packet, sk session.Index, sec
 				}
 				pIn <- p
 			case p, pOut_ok = <-pOut:
-				iv, err := packet.NewIv()
-				if err != nil {
-					log.Error("Failed to generate iv.")
-					continue
-				}
-				p.Header.Iv = *iv
 				p.Header.Sk = sk
-				log.Debug("iv:", p.Header.Iv[:])
-				log.Debug("sk:", p.Header.Sk[:])
 				err = encrypt.EncryptPacket(&p, secret[:])
 				if err != nil {
 					log.Error(err)
