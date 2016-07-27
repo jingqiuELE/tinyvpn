@@ -18,7 +18,7 @@ var ErrIPAddrPoolFull = errors.New("IPAddrPool is full")
 
 type AuthServer struct {
 	sync.RWMutex
-	secretMap  map[session.Key]session.Secret
+	secretMap  map[session.Index]session.Secret
 	ipAddrPool ippool.IPAddrPool
 }
 
@@ -29,7 +29,7 @@ func newAuthServer(serverIP string, port int, vpnnet string) (*AuthServer, error
 		"orange": "raw",
 	}
 
-	m := make(map[session.Key]session.Secret)
+	m := make(map[session.Index]session.Secret)
 	a := &AuthServer{secretMap: m}
 
 	serverAddr := serverIP + ":" + strconv.Itoa(port)
@@ -87,9 +87,9 @@ func (a *AuthServer) handleAuthConn(conn *net.TCPConn) error {
 		return ErrUser
 	}
 
-	sk, err := session.NewKey()
+	sk, err := session.NewIndex()
 	if err != nil {
-		log.Error("Failed to create new Key:", err)
+		log.Error("Failed to create new Index:", err)
 		return err
 	}
 	log.Debug("session key:", sk)
@@ -100,9 +100,7 @@ func (a *AuthServer) handleAuthConn(conn *net.TCPConn) error {
 		return err
 	}
 
-	a.Lock()
-	a.secretMap[*sk] = *secret
-	a.Unlock()
+	a.setSecret(*sk, *secret)
 
 	ip, err := a.ipAddrPool.Get()
 	if err != nil {
@@ -119,4 +117,17 @@ func (a *AuthServer) handleAuthConn(conn *net.TCPConn) error {
 		return err
 	}
 	return err
+}
+
+func (a *AuthServer) setSecret(sk session.Index, secret session.Secret) {
+	a.Lock()
+	a.secretMap[sk] = secret
+	a.Unlock()
+}
+
+func (a *AuthServer) getSecret(sk session.Index) (session.Secret, bool) {
+	a.RLock()
+	secret, ok := a.secretMap[sk]
+	a.RUnlock()
+	return secret, ok
 }

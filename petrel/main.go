@@ -38,7 +38,7 @@ func main() {
 
 	log.Infof("Values of the config are: Auth %v, TCP %v, UDP %v, ServerAddr %v, vpnnet %v", authPort, tcpPort, udpPort, serverAddr, vpnnet)
 
-	_, err := newAuthServer(serverAddr, authPort, vpnnet)
+	a, err := newAuthServer(serverAddr, authPort, vpnnet)
 	if err != nil {
 		log.Errorf("Failed to create AuthServer %v", err)
 		return
@@ -50,7 +50,7 @@ func main() {
 		return
 	}
 
-	_, err = newEncryptServer(eOut, eIn, pOut, pIn)
+	_, err = newEncryptServer(a, eOut, eIn, pOut, pIn)
 	if err != nil {
 		log.Error("Failed to create EncryptServer:", err)
 		return

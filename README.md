@@ -2,35 +2,90 @@ TinyVPN
 =======
 Code named petrel.
 
-Server Architecture
+Petrel Architecture
 -------------------
-![Architecture Diagram](TinyVPN.png)
-### Logic Layers
-1. Authentication Service: 
+### Server:
+
+
+                         Set      +----------------------+
+                      +----------->    secretMap         |    +----------+
+                      |           +----------+-----------+    |   tun    |
+                      |           |  session |  session  |    +----+-^---+
+                +-----+-------+   |   Index  |  Secret   |         | |
+       +------> |  AuthServer |   +----------+-----------+        Data
+       |        +-------------+               |Get                 | |
+     authData                       +-----------------+      +-----v-+-----+
+       |        +-------------+ eIn | +-------v-----+ | pIn  |             |
+       |        |             +-----> |  Decryption +-------->             |
+    +--v--+ data| ConnServer  |     | +-------------+ |      |  bookServer |
+    | Wan <-----> (TCP,UDP)   | eOut| +-------------+ | pOut |             |
+    +-----+     |             <-----+ |  Encrytion  <--------+             |
+                +--------^----+     | +-------------+ |      |             |
+                         |          +-----------------+      +------^------+
+                      Set|Get                                    Set|Get
+                +--------v-------------+  +---------------------------------+
+                |      connMap         |  | +-----------------------v-----+ |
+                +---------+------------+  | |      ipToSession            | |
+                | session | Connection |  | +-------------+---------------+ |
+                |  Index  |            |  | | ip.String() | session.Index | |
+                +---------+------------+  | +-----------------------------+ |
+                                          | +-----------------------------+ |
+                                          | |    sessionToIp              | |
+                                          | +---------------+-------------+ |
+                                          | | session.Index | ip.String() | |
+                                          | +-----------------------------+ |
+                                          +---------------------------------+
+
+#### Logic Layers
+1. AuthServer: 
     1. Exchange username and password for session key
     2. Put session key into client-session map
-2. Connection Layer Listener: 
+2. ConnServer: 
     1. TCP or UDP socket listener, accepts connection/packets from the client
     2. Extract session key to create / load corresponding client, maintains client-session map
-    3. Put packets into a encrypted packets channel
-    4. Accepts packets from packets return channel, lookup the corresponding client connection and return the packets
-3. Decryption/Encryption Layer: 
-    1. Decrypt the packet content from packets channel to tun
-    2. Encrypt the packets from tun to return packets channel
-4. Packet forward layer: 
-    1. Foward the decrypted packet to the tun interface
+    3. Put packets into a eIn channel
+    4. Accepts packets from eOut channel, lookup the corresponding client connection and return the packets
+3. EncryptServer: 
+    1. Decrypt the packet content from eIn channel to pIn channel. 
+    2. Encrypt the packets from pOut to eOut channel.
+4. bookServer: 
+    1. Foward the decrypted packet from pIn channel to the tun interface
     2. Maintains IP-session map
-    3. Accepts packets coming from the tun interface
+    3. Accepts packets coming from the tun interface to pOut channel
 
-### Data Structures
+### Client:        
+
+    
+                                                             +--------+
+                                                             |  apps  |
+                +---------+      session                     +---^-+--+
+       +------> |  Auth   +-------------------+                  | |
+       +        +---------+                   |                 Data
+     auth                           +-----------------+          | |
+       +        +-------------+ eIn | +-------v-----+ | pIn  +---+-v----+
+       |        |             +-----> |  Decryption +-------->          |
+    +--v--+ data| ConnServer  |     | +-------------+ |      |   tun    |
+    | Wan <-----> (TCP,UDP)   | eOut| +-------------+ | pOut |          |
+    +-----+     |             <-----+ |  Encrytion  <--------+          |
+                +-------------+     | +-------------+ |      +----------+
+                                    +-----------------+
+
+
+### Common Data Structures
 
 ##### Packet
 ````golang
+/* Fixed-size PacketHeader to ease marshal and unmarshal */
+type Iv [IvLen]byte
+type PacketHeader struct {
+	Iv  Iv
+	Sk  session.Index
+	Len uint16
+}
+
 type Packet struct {
-    iv [4]byte
-    session [6]byte // Session key, used as MAC address for tun device.
-    length uint16
-    data []byte
+    Header PacketHeader
+    Data []byte
 }
 ````
 

@@ -53,8 +53,6 @@ func handleIn(conn *net.UDPConn, eIn chan packet.Packet) {
 			continue
 		}
 
-		log.Debug("Connection handleIn:", buf[:n])
-
 		p, err := packet.UnmarshalFromSlice(buf[:n])
 		if err != nil {
 			log.Error("Failed to unmarshal data:", err)
