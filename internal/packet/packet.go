@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"github.com/jingqiuELE/tinyvpn/internal/session"
 	"io"
-	"session"
 )
 
 const IvLen = 4

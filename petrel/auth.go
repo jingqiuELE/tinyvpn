@@ -3,9 +3,9 @@ package main
 import (
 	"errors"
 	"fmt"
-	"ippool"
+	"github.com/jingqiuELE/tinyvpn/internal/ippool"
+	"github.com/jingqiuELE/tinyvpn/internal/session"
 	"net"
-	"session"
 	"strconv"
 	"strings"
 	"sync"

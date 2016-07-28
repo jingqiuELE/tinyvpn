@@ -1,10 +1,10 @@
 package main
 
 import (
+	"github.com/jingqiuELE/tinyvpn/internal/packet"
+	"github.com/jingqiuELE/tinyvpn/internal/tunnel"
 	"github.com/songgao/water"
 	"net"
-	"packet"
-	"tunnel"
 )
 
 /* Handle client's traffic, wrap each packet with outer IP Header */

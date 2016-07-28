@@ -4,8 +4,8 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
+	"github.com/jingqiuELE/tinyvpn/internal/packet"
 	"io"
-	"packet"
 )
 
 func Encrypt(key []byte, ivSize int, data []byte) (encryptedData, iv []byte, err error) {

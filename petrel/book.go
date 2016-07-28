@@ -2,10 +2,10 @@ package main
 
 import (
 	"github.com/codeskyblue/go-sh"
+	"github.com/jingqiuELE/tinyvpn/internal/packet"
+	"github.com/jingqiuELE/tinyvpn/internal/session"
 	"github.com/songgao/water"
 	"github.com/songgao/water/waterutil"
-	"packet"
-	"session"
 	"sync"
 )
 

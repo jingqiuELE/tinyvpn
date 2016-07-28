@@ -1,9 +1,9 @@
 package main
 
 import (
-	"encrypt"
-	"packet"
-	"session"
+	"github.com/jingqiuELE/tinyvpn/internal/encrypt"
+	"github.com/jingqiuELE/tinyvpn/internal/packet"
+	"github.com/jingqiuELE/tinyvpn/internal/session"
 )
 
 type EncryptServer struct {
