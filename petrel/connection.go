@@ -1,9 +1,9 @@
 package main
 
 import (
+	"github.com/jingqiuELE/tinyvpn/internal/packet"
+	"github.com/jingqiuELE/tinyvpn/internal/session"
 	"net"
-	"packet"
-	"session"
 	"strconv"
 	"sync"
 )

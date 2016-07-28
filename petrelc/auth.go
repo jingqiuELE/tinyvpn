@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
+	"github.com/jingqiuELE/tinyvpn/internal/session"
 	"io"
 	"net"
-	"session"
 	"strconv"
 )
 

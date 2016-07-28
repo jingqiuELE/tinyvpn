@@ -1,3 +1,5 @@
+//session includes the type definition for a client's session.
+//A session has an index, which maps to a randomly generated session secret.
 package session
 
 import (

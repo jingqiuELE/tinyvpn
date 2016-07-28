@@ -2,14 +2,14 @@ package main
 
 import (
 	"errors"
+	"github.com/jingqiuELE/tinyvpn/internal/logger"
+	"github.com/jingqiuELE/tinyvpn/internal/packet"
+	"github.com/jingqiuELE/tinyvpn/internal/tunnel"
 	"github.com/op/go-logging"
 	"github.com/songgao/water"
-	"logger"
 	"os"
 	"os/signal"
-	"packet"
 	"syscall"
-	"tunnel"
 
 	flag "github.com/spf13/pflag"
 )

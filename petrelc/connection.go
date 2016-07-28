@@ -1,8 +1,8 @@
 package main
 
 import (
+	"github.com/jingqiuELE/tinyvpn/internal/packet"
 	"net"
-	"packet"
 	"strconv"
 )
 
