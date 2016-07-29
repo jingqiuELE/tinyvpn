@@ -3,8 +3,8 @@ package packet
 import (
 	"crypto/rand"
 	"fmt"
+	"github.com/jingqiuELE/tinyvpn/internal/session"
 	"reflect"
-	"session"
 	"testing"
 )
 
