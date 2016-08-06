@@ -47,7 +47,10 @@ func (t TConnection) writePacket(p packet.Packet) error {
 	err := packet.MarshalToStream(p, t.TCPConn)
 	if err != nil {
 		log.Error("Failed to write Packet to TCP client:", err)
+	} else {
+		log.Debug("packet send to client:", p)
 	}
+
 	return err
 }
 
@@ -139,6 +142,7 @@ func (c *ConnServer) startTCPListener(serverIP string, port int) error {
 				log.Error(err)
 				return
 			}
+			log.Info("New tcp connection accepted.")
 			go c.handleTCPConn(conn)
 		}
 	}()
@@ -146,23 +150,26 @@ func (c *ConnServer) startTCPListener(serverIP string, port int) error {
 }
 
 func (c *ConnServer) handleTCPConn(conn *net.TCPConn) error {
-	p, err := readPacketFromTCP(conn)
-	if err != nil {
-		log.Error(err)
-		return err
+	var err error
+	for {
+		p, err := readPacketFromTCP(conn)
+		if err != nil {
+			log.Error(err)
+			break
+		}
+
+		t := new(TConnection)
+		t.TCPConn = conn
+
+		sk := new(session.Index)
+		copy(sk[:], p.Header.Sk[:])
+
+		c.Lock()
+		c.connMap[*sk] = t
+		c.Unlock()
+
+		c.eIn <- p
 	}
-
-	t := new(TConnection)
-	t.TCPConn = conn
-
-	sk := new(session.Index)
-	copy(sk[:], p.Header.Sk[:])
-
-	c.Lock()
-	c.connMap[*sk] = t
-	c.Unlock()
-
-	c.eIn <- p
 	return err
 }
 

@@ -17,18 +17,18 @@ func main() {
 	const channelSize = 10
 
 	var (
-		tcpPort, udpPort, authPort int
-		serverAddr                 string
-		eOut                       = make(chan packet.Packet, channelSize)
-		pOut                       = make(chan packet.Packet, channelSize)
-		eIn                        = make(chan packet.Packet, channelSize)
-		pIn                        = make(chan packet.Packet, channelSize)
+		authPort, connPort       int
+		serverAddr, connProtocol string
+		eOut                     = make(chan packet.Packet, channelSize)
+		pOut                     = make(chan packet.Packet, channelSize)
+		eIn                      = make(chan packet.Packet, channelSize)
+		pIn                      = make(chan packet.Packet, channelSize)
 	)
 
-	flag.StringVarP(&serverAddr, "serverAddr", "s", "0.0.0.0", "IP address of the server")
-	flag.IntVarP(&authPort, "auth", "a", 7282, "Port for the authentication service.")
-	flag.IntVarP(&tcpPort, "tcp", "t", 8272, "TCP port of connServer")
-	flag.IntVarP(&udpPort, "udp", "u", 8272, "UDP port of connServer")
+	flag.StringVarP(&serverAddr, "serverAddr", "s", "0.0.0.0", "IP address of server")
+	flag.IntVarP(&authPort, "authPort", "a", 7282, "Port of authServer.")
+	flag.IntVarP(&connPort, "connPort", "c", 8272, "port of connServer")
+	flag.StringVarP(&connProtocol, "connProtocol", "p", "udp", "transport protocol to connServer")
 	flag.Parse()
 
 	sk, secret, ip, err := authGetSession(serverAddr, authPort)
@@ -49,7 +49,7 @@ func main() {
 		return
 	}
 
-	err = startConnection(serverAddr, udpPort, eOut, eIn)
+	err = startConnection(serverAddr, connProtocol, connPort, eOut, eIn)
 	if err != nil {
 		log.Error("Faild to create Connection:", err)
 		return

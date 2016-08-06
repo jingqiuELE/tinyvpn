@@ -50,16 +50,17 @@ func UnmarshalFromStream(r io.Reader) (Packet, error) {
 
 	err := binary.Read(r, binary.BigEndian, &p.Header)
 	if err != nil {
-		fmt.Println("binary read Packet Header failed:", err)
+		fmt.Println("Binary read p.Header failed:", err)
 		return *p, err
 	}
+	fmt.Println("UnmarshalFromStream-->p.Header:", p.Header)
 
 	p.Data = make([]byte, p.Header.Len)
-	err = binary.Read(r, binary.BigEndian, &p.Data)
+	_, err = io.ReadFull(r, p.Data)
 	if err != nil {
-		fmt.Println("binary read Packet Data failed:", err)
+		fmt.Println("Read p.Data failed:", err)
 	}
-
+	fmt.Println("UnmarshallFromStream-->p.Data:", p.Data)
 	return *p, err
 }
 
