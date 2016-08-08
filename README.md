@@ -112,7 +112,13 @@ A bi-directional map facilitates lookups using sessionkey and IP address as
 keys. A better than iterate through the list way of handling boardcast packets
 needs to be find.
 
-
+### Usage
+  * Petrel contains two programs: _petrel_ as the server, and _petrelc_ as the client.
+  * Start the server:
+      * Please refer to _test/server-start.sh_
+  * Start the client:
+      * Please refer to _test/client-start.sh_
+  
 ### Testing
 
 ##### Goal
@@ -142,6 +148,7 @@ needs to be find.
 
 ##### How to run
   In the test directory, please follow below steps:
+  * Change mininet topo to suit your needs. 
   * $make build
   * $make run    
   * You should be able to see both wireshark and a mininet console. In the mininet console, run below commands to start **petrel**:
@@ -152,10 +159,11 @@ needs to be find.
 
 ##### How to observe
   * Open another console of the mininet container
-    * $docker attach tinyvpn_mininet
+    * $docker exec -it tinyvpn_mininet bash
   * Observe the network status of each host
     * mininet>client ip route
     * mininet>client ifconfig -a
+    * mininet>client ping 10.0.5.100
   * You can filter the packets in Wireshark by adding filers.
     For example:
     ip.src == 10.0.1.100
