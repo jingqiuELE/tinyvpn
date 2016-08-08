@@ -149,7 +149,9 @@ needs to be find.
 ##### How to run
   In the test directory, please follow below steps:
   * Change mininet topo to suit your needs. 
-  * $make build
+  * Build the docker container of mininet with either of below commands:
+      * $make build
+      * $docker pull jingqiu/docker-mininet-auto
   * $make run    
   * You should be able to see both wireshark and a mininet console. In the mininet console, run below commands to start **petrel**:
     * mininet>server ./tinyvpn/server-start.sh
