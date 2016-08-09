@@ -66,6 +66,11 @@ func main() {
 		log.Error(err)
 		return
 	}
+	err = tunnel.SetMtu(tun, packet.MTU)
+	if err != nil {
+		log.Error(err)
+		return
+	}
 	err = tunnel.Bringup(tun)
 	if err != nil {
 		log.Error(err)
@@ -85,10 +90,10 @@ func main() {
 
 	//Receive system signal to stop the server.
 	go func() {
-		c := make(chan os.Signal, 1)
-		signal.Notify(c, os.Interrupt, os.Kill, syscall.SIGTERM)
-
-		s := <-c
+		sigs := make(chan os.Signal, 1)
+		signal.Notify(sigs, os.Kill)
+		signal.Notify(sigs, syscall.SIGTERM)
+		s := <-sigs
 		log.Notice("Received signal", errors.New(s.String()))
 	}()
 

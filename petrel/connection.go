@@ -185,7 +185,7 @@ func (c *ConnServer) readPacketFromUDP(u *net.UDPConn) (packet.Packet, error) {
 	var p packet.Packet
 	var sk session.Index
 
-	buf := make([]byte, BUFFERSIZE)
+	buf := make([]byte, packet.PacketSize)
 	n, cliaddr, err := u.ReadFromUDP(buf)
 	if err != nil {
 		log.Error("reading from ", cliaddr.String(), err)
