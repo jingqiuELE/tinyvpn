@@ -66,6 +66,11 @@ func main() {
 		log.Error(err)
 		return
 	}
+	err = tunnel.SetMtu(tun, packet.MTU)
+	if err != nil {
+		log.Error(err)
+		return
+	}
 	err = tunnel.Bringup(tun)
 	if err != nil {
 		log.Error(err)

@@ -12,6 +12,10 @@ const IvLen = 4
 
 type Iv [IvLen]byte
 
+const PacketSize = 1500
+const PacketHeaderSize = IvLen + session.IndexLen + 4
+const MTU = PacketSize - PacketHeaderSize
+
 /* Fixed-size PacketHeader to ease marshal and unmarshal */
 type PacketHeader struct {
 	Iv  Iv
@@ -56,11 +60,11 @@ func UnmarshalFromStream(r io.Reader) (Packet, error) {
 	fmt.Println("UnmarshalFromStream-->p.Header:", p.Header)
 
 	p.Data = make([]byte, p.Header.Len)
-	_, err = io.ReadFull(r, p.Data)
+	n, err := io.ReadFull(r, p.Data)
 	if err != nil {
-		fmt.Println("Read p.Data failed:", err)
+		fmt.Println("Read %d bytes", n)
+		fmt.Println(err)
 	}
-	fmt.Println("UnmarshallFromStream-->p.Data:", p.Data)
 	return *p, err
 }
 

@@ -72,7 +72,7 @@ func handleUDPOut(conn *net.UDPConn, eOut chan packet.Packet) {
 
 /* traffic from target to client */
 func handleUDPIn(conn *net.UDPConn, eIn chan packet.Packet) {
-	buf := make([]byte, BUFFERSIZE)
+	buf := make([]byte, packet.PacketSize)
 	for {
 		n, err := conn.Read(buf)
 		if err != nil {

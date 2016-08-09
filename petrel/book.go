@@ -43,18 +43,16 @@ func (bs *BookServer) start() {
 			return
 		}
 		src_ip := waterutil.IPv4Source(p.Data)
-		log.Debug("BookServer: handling for client", src_ip)
+		log.Debug("Book: from client", src_ip)
 
 		bs.book.Add(src_ip.String(), p.Header.Sk)
 		bs.tun.Write(p.Data)
 	}
 }
 
-const BUFFERSIZE = 1500
-
 /* Handle traffic from target to client */
 func (bs *BookServer) listenTun() error {
-	buffer := make([]byte, BUFFERSIZE)
+	buffer := make([]byte, packet.MTU)
 	for {
 		n, err := bs.tun.Read(buffer)
 		if err != nil {
