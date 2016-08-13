@@ -84,7 +84,9 @@ func newConnServer(serverIP string, tcpPort int, udpPort int,
 			p := <-c.eOut
 			copy(sk[:], p.Header.Sk[:])
 
+			c.RLock()
 			conn, ok := c.connMap[sk]
+			c.RUnlock()
 			if ok {
 				conn.writePacket(p)
 			}
