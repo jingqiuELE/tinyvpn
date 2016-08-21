@@ -13,6 +13,7 @@ CLIENT_SRC = ../petrelc/main.go ../petrelc/auth.go ../petrelc/connection.go \
 
 SERVER_SCRIPT = ./scripts/server-start.sh
 CLIENT_SCRIPT = ./scripts/client-start.sh
+NC_SCRIPT = ./scripts/cnc.sh
 
 build: docker-mininet docker-tcpdump
 	cd docker-mininet; docker build -t docker-mininet . 
@@ -30,6 +31,7 @@ run: clean start_container $(SERVER) $(CLIENT)
 	docker cp $(CLIENT) $(MININET_NAME):/projects/tinyvpn/
 	docker cp $(SERVER_SCRIPT) $(MININET_NAME):/projects/tinyvpn/
 	docker cp $(CLIENT_SCRIPT) $(MININET_NAME):/projects/tinyvpn/
+	docker cp $(NC_SCRIPT) $(MININET_NAME):/projects/tinyvpn/
 	docker exec -it $(MININET_NAME) $(CMD_START_MN) 
 
 $(SERVER): $(SERVER_SRC)
