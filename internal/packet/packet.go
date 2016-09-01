@@ -3,6 +3,7 @@ package packet
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"github.com/jingqiuELE/tinyvpn/internal/logger"
 	"github.com/jingqiuELE/tinyvpn/internal/session"
 	"github.com/op/go-logging"
@@ -29,6 +30,10 @@ type PacketHeader struct {
 type Packet struct {
 	Header PacketHeader
 	Data   []byte
+}
+
+func (h PacketHeader) String() string {
+	return fmt.Sprintf("Iv: [% x], Sk: [% x], len: %d", h.Iv, h.Sk, h.Len)
 }
 
 func NewPacket() *Packet {
