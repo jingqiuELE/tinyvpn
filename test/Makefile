@@ -11,9 +11,8 @@ CLIENT = ../petrelc/petrelc
 CLIENT_SRC = ../petrelc/main.go ../petrelc/auth.go ../petrelc/connection.go \
 			 ../petrelc/encrypt.go ../petrelc/local.go
 
-SERVER_SCRIPT = ./scripts/server-start.sh
-CLIENT_SCRIPT = ./scripts/client-start.sh
-NC_SCRIPT = ./scripts/cnc.sh
+WORK_DIR = /projects/tinyvpn
+SCRIPTS = ./scripts
 
 build: docker-mininet docker-tcpdump
 	cd docker-mininet; docker build -t docker-mininet . 
@@ -26,12 +25,10 @@ docker-tcpdump:
 	git clone https://github.com/jingqiuELE/docker-tcpdump.git
 
 run: clean start_container $(SERVER) $(CLIENT)
-	docker exec $(MININET_NAME) mkdir -p /projects/tinyvpn
-	docker cp $(SERVER) $(MININET_NAME):/projects/tinyvpn/
-	docker cp $(CLIENT) $(MININET_NAME):/projects/tinyvpn/
-	docker cp $(SERVER_SCRIPT) $(MININET_NAME):/projects/tinyvpn/
-	docker cp $(CLIENT_SCRIPT) $(MININET_NAME):/projects/tinyvpn/
-	docker cp $(NC_SCRIPT) $(MININET_NAME):/projects/tinyvpn/
+	docker exec $(MININET_NAME) mkdir -p $(WORK_DIR)
+	docker cp $(SERVER) $(MININET_NAME):$(WORK_DIR)
+	docker cp $(CLIENT) $(MININET_NAME):$(WORK_DIR)
+	docker cp $(SCRIPTS) $(MININET_NAME):$(WORK_DIR)
 	docker exec -it $(MININET_NAME) $(CMD_START_MN) 
 
 $(SERVER): $(SERVER_SRC)
