@@ -12,13 +12,17 @@ import (
 
 var log = logger.Get(logging.ERROR)
 
+//Assuming ethernet network interface has MTU 1500 bytes, from which we reduce
+//the size of IPv4 header(minimal 20 bytes) and UDP header(8 bytes), to get the
+//allowed packet size of petrel. The purpose of this is to fit a petrel packet in
+//one frame without IP fragmentation.
+const PacketSize = 1500 - 28
+
 const IvLen = 4
+const PacketHeaderSize = IvLen + session.IndexLen + 2
+const MTU = PacketSize - PacketHeaderSize
 
 type Iv [IvLen]byte
-
-const PacketSize = 1500
-const PacketHeaderSize = IvLen + session.IndexLen + 4
-const MTU = PacketSize - PacketHeaderSize
 
 /* Fixed-size PacketHeader to ease marshal and unmarshal */
 type PacketHeader struct {
