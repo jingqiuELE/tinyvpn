@@ -63,10 +63,8 @@ func (bs *BookServer) listenTun() error {
 		dst_ip := waterutil.IPv4Destination(buffer[:n])
 		log.Debug("Book: to client", dst_ip)
 
-		sk := bs.book.getSession(dst_ip.String())
-		log.Debug("Book: got session", sk)
-
 		p := packet.NewPacket()
+		sk := bs.book.getSession(dst_ip.String())
 		p.Header.Sk = sk
 		p.SetData(buffer[:n])
 		bs.pOut <- *p

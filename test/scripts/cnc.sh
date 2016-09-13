@@ -25,4 +25,6 @@ else
     PROTO=""
 fi
 
-cat /dev/urandom | base64 | head -c $COUNT | nc -q 1 $PROTO $TARGET $PORT
+cd /projects/tinyvpn/scripts
+cat /dev/urandom | base64 | head -c $COUNT > random.in 
+nc -q 1 $PROTO $TARGET $PORT < random.in
