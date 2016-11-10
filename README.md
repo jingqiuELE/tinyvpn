@@ -161,7 +161,7 @@ needs to be find.
 
 ##### How to observe
   * Start wireshark to observe traffic of the mininet network (You need to have wireshark installed):
-    * ./test/start\_capture.sh
+    * ./test/start\_capture.sh  
     Please note that there will be two wireshark window opened. One for the traffic to/from target, the other for the traffic to/from the server. This approach try to avoid duplication of packets reported on mininet switches.
 
   * Open another console of the mininet container
