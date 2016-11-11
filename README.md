@@ -115,9 +115,9 @@ needs to be find.
 ### Usage
   * Petrel contains two programs: _petrel_ as the server, and _petrelc_ as the client.
   * Start the server:
-      * Please refer to _test/server-start.sh_
+      * Please refer to _test/scripts/server-start.sh_
   * Start the client:
-      * Please refer to _test/client-start.sh_
+      * Please refer to _test/scripts/client-start.sh_
   
 ### Testing
 
@@ -154,19 +154,22 @@ needs to be find.
       * $docker pull jingqiu/docker-mininet-auto
   * $make run    
   * You should be able to see both wireshark and a mininet console. In the mininet console, run below commands to start **petrel**:
-    * mininet>server ./tinyvpn/server-start.sh
-    * mininet>client ./tinyvpn/client-start.sh
+    * mininet>server ./tinyvpn/scripts/server-start.sh
+    * mininet>client ./tinyvpn/scripts/client-start.sh
     * You should be able to observe the connection established.
-  * The network qos can be adjusted in the Makefile, by changing $(CMD_START_MN) with qos settings.
+  * The network qos can be adjusted in the Makefile, by changing $(CMD\_START\_MN) with qos settings.
 
 ##### How to observe
-  * Open another console of the mininet container
-    * $docker exec -it tinyvpn_mininet bash
-  * Observe the network status of each host
+  * Start wireshark to observe traffic of the mininet network (You need to have wireshark installed):
+    * ./test/start\_capture.sh  
+    Please note that there will be two wireshark window opened. One for the traffic to/from target, the other for the traffic to/from the server. This approach tries to avoid duplication of packets reported on mininet switches.
+  * Open another console of the mininet container:
+    * $docker exec -it tinyvpn\_mininet bash
+  * Observe the network status of each host:
     * mininet>client ip route
     * mininet>client ifconfig -a
     * mininet>client ping 10.0.5.100
-  * You can filter the packets in Wireshark by adding filers.
+  * You can filter the packets in Wireshark by adding filers:
     For example:
     ip.src == 10.0.1.100
   
