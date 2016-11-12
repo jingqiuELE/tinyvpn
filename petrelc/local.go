@@ -38,8 +38,8 @@ func startListenTun(pIn, pOut chan packet.Packet, ip net.IP) error {
 
 /* handle traffic from client to target */
 func handleTunOut(tun *water.Interface, pOut chan packet.Packet) {
-	buf := make([]byte, packet.MTU)
 	for {
+		buf := make([]byte, packet.MTU)
 		n, err := tun.Read(buf)
 		if err != nil {
 			log.Error("Reading from tunnel:", err)
@@ -48,6 +48,7 @@ func handleTunOut(tun *water.Interface, pOut chan packet.Packet) {
 
 		p := packet.NewPacket()
 		p.SetData(buf[:n])
+
 		pOut <- *p
 	}
 }
