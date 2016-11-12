@@ -33,9 +33,7 @@ func newBookServer(pOut, pIn chan packet.Packet, vpnnet string, tun *water.Inter
 }
 
 func (bs *BookServer) start() {
-
 	go bs.listenTun()
-
 	for {
 		p, ok := <-bs.pIn
 		if !ok {
@@ -44,9 +42,13 @@ func (bs *BookServer) start() {
 		}
 		src_ip := waterutil.IPv4Source(p.Data)
 		log.Debug("Book: from client", src_ip)
+		log.Debug("Book: datalen=", len(p.Data))
 
 		bs.book.Add(src_ip.String(), p.Header.Sk)
-		bs.tun.Write(p.Data)
+		_, err := bs.tun.Write(p.Data)
+		if err != nil {
+			log.Error("Error writing to tun!", err)
+		}
 	}
 }
 
