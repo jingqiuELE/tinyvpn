@@ -154,8 +154,8 @@ needs to be find.
       * $docker pull jingqiu/docker-mininet-auto
   * $make run    
   * You should be able to see both wireshark and a mininet console. In the mininet console, run below commands to start **petrel**:
-    * mininet>server ./tinyvpn/scripts/server-start.sh
-    * mininet>client ./tinyvpn/scripts/client-start.sh
+    * mininet>server ./scripts/server-start.sh
+    * mininet>client ./scripts/client-start.sh
     * You should be able to observe the connection established.
   * The network qos can be adjusted in the Makefile, by changing $(CMD\_START\_MN) with qos settings.
 
@@ -172,6 +172,9 @@ needs to be find.
   * You can filter the packets in Wireshark by adding filers:
     For example:
     ip.src == 10.0.1.100
-  
-
+  * You can try _nc_ command and _iperf_ command to do bench mark test. Please note that the link traffic control can be set in mininet's config script:  
+    tinyvpn_topo.py  
+    Please read mininet mannual for the details. The example test scripts can be found in:  
+      * test/scripts/nc_test
+      * test/scripts/iperf_test
 

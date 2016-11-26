@@ -11,7 +11,7 @@ import (
 	"syscall"
 )
 
-var log = logger.Get(logging.DEBUG)
+var log = logger.Get(logging.ERROR)
 
 func main() {
 	const channelSize = 10

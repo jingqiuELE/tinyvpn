@@ -14,7 +14,7 @@ import (
 	flag "github.com/spf13/pflag"
 )
 
-var log = logger.Get(logging.DEBUG)
+var log = logger.Get(logging.ERROR)
 
 func main() {
 
