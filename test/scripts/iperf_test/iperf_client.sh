@@ -12,13 +12,17 @@ if [ $# -ne 1 ]; then
 fi
 
 PROTO=$1
+BW=""
 
 # Limit iperf buffer length to be the mss of UDP packet (MTU-Header_size)
+# By default, iperf will limit the bandwidth of UDP traffic to 1Mbps. Set the limit to be 1Gbps instead.
+
 if [ $PROTO == "udp" ]; then
     PROTO="-u -l 1432"
+    BW="-b 1g"
 else
     PROTO=""
 fi
 
 cd ./scripts
-iperf $PROTO -c 10.0.5.100 > iperf_client.log &
+iperf $PROTO -c 10.0.5.100 $BW > iperf_client.log &
