@@ -21,6 +21,6 @@ else
     PROTO=""
 fi
 
-cd /projects/tinyvpn/scripts
+cd ./scripts
 cat /dev/urandom | base64 | head -c $COUNT > random.in 
 nc -q 1 $PROTO 10.0.5.100 2222 < random.in
