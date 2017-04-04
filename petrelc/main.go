@@ -2,16 +2,17 @@ package main
 
 import (
 	"errors"
+	"os"
+	"os/signal"
+	"syscall"
+
 	"github.com/jingqiuELE/tinyvpn/internal/logger"
 	"github.com/jingqiuELE/tinyvpn/internal/packet"
 	"github.com/op/go-logging"
 	flag "github.com/spf13/pflag"
-	"os"
-	"os/signal"
-	"syscall"
 )
 
-var log = logger.Get(logging.ERROR)
+var log = logger.Get(logging.DEBUG)
 
 func main() {
 	const channelSize = 10
@@ -19,6 +20,7 @@ func main() {
 	var (
 		authPort, connPort       int
 		serverAddr, connProtocol string
+		keyfile                  string
 		eOut                     = make(chan packet.Packet, channelSize)
 		pOut                     = make(chan packet.Packet, channelSize)
 		eIn                      = make(chan packet.Packet, channelSize)
@@ -29,9 +31,10 @@ func main() {
 	flag.IntVarP(&authPort, "authPort", "a", 7282, "Port of authServer.")
 	flag.IntVarP(&connPort, "connPort", "c", 8272, "port of connServer")
 	flag.StringVarP(&connProtocol, "connProtocol", "p", "udp", "transport protocol to connServer")
+	flag.StringVarP(&keyfile, "keyfile", "k", "./public.key", "public key for the Auth")
 	flag.Parse()
 
-	sk, secret, ip, err := authGetSession(serverAddr, authPort)
+	sk, secret, ip, err := authGetSession(serverAddr, authPort, keyfile)
 	if err != nil {
 		log.Error("Failed to auth myself:", err)
 		return

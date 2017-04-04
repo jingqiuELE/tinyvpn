@@ -35,7 +35,7 @@ func GetRandomSessionKey() []byte {
 	// The hybrid scheme should use at least a 16-byte symmetric key. Here
 	// we read the random key that will be used if the RSA decryption isn't
 	// well-formed.
-	key := make([]byte, 16)
+	key := make([]byte, 32)
 	if _, err := io.ReadFull(rng, key); err != nil {
 		panic("RNG failure")
 	}

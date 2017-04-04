@@ -1,20 +1,25 @@
 package main
 
 import (
+	"crypto/aes"
+	"crypto/rand"
+	"crypto/rsa"
 	"errors"
 	"fmt"
-	"github.com/jingqiuELE/tinyvpn/internal/ippool"
-	"github.com/jingqiuELE/tinyvpn/internal/session"
 	"net"
+	"os"
 	"strconv"
-	"strings"
 	"sync"
-)
 
-var userMap map[string]string
+	"github.com/jingqiuELE/tinyvpn/internal/encrypt"
+	"github.com/jingqiuELE/tinyvpn/internal/ippool"
+	"github.com/jingqiuELE/tinyvpn/internal/rsautil"
+	"github.com/jingqiuELE/tinyvpn/internal/session"
+)
 
 var ErrUser = errors.New("User crenditial is wrong")
 var ErrIPAddrPoolFull = errors.New("IPAddrPool is full")
+var privateKey rsa.PrivateKey
 
 type AuthServer struct {
 	sync.RWMutex
@@ -22,13 +27,7 @@ type AuthServer struct {
 	ipAddrPool ippool.IPAddrPool
 }
 
-func newAuthServer(serverIP string, port int, vpnnet string) (*AuthServer, error) {
-	userMap = map[string]string{
-		"apple":  "juice",
-		"banana": "shake",
-		"orange": "raw",
-	}
-
+func newAuthServer(serverIP string, port int, vpnnet string, keyfile string) (*AuthServer, error) {
 	m := make(map[session.Index]session.Secret)
 	a := &AuthServer{secretMap: m}
 
@@ -51,6 +50,8 @@ func newAuthServer(serverIP string, port int, vpnnet string) (*AuthServer, error
 	}
 	a.ipAddrPool = ippool.NewIPAddrPool(internalIP, ipNet)
 
+	rsautil.LoadKey(keyfile, &privateKey)
+
 	go func() {
 		for {
 			conn, err := l.AcceptTCP()
@@ -70,6 +71,8 @@ func dumpString(s string) {
 }
 
 func (a *AuthServer) handleAuthConn(conn *net.TCPConn) error {
+	var session_secret session.Secret
+
 	buf := make([]byte, 1024)
 	n, err := conn.Read(buf)
 	if err != nil {
@@ -77,44 +80,44 @@ func (a *AuthServer) handleAuthConn(conn *net.TCPConn) error {
 		return err
 	}
 
-	s := string(buf[:n])
-	data := strings.Split(s, ":")
-	user := data[0]
-	rp := data[1]
-	p, ok := userMap[user]
-	if !ok || (p != rp) {
-		log.Error("User/Password incorrect!", ok)
-		return ErrUser
+	secret := rsautil.GetRandomSessionKey()
+	err = rsa.DecryptPKCS1v15SessionKey(rand.Reader, &privateKey, buf[:n],
+		secret)
+
+	if err != nil {
+		fmt.Println("Error decrypting session key ", err.Error())
+		os.Exit(1)
 	}
+	log.Debug("Decrypted session key is ", secret)
 
 	sk, err := session.NewIndex()
 	if err != nil {
 		log.Error("Failed to create new Index:", err)
 		return err
 	}
-	log.Debug("session key:", sk)
+	log.Debug("session index:", sk)
+	log.Debug("Received session secret: ", secret[:session.SecretLen])
 
-	secret, err := session.NewSecret()
-	if err != nil {
-		log.Error("Failed to create new Secret:", err)
-		return err
-	}
-
-	a.setSecret(*sk, *secret)
+	copy(session_secret[:], secret[:session.SecretLen])
+	a.setSecret(*sk, session_secret)
 
 	ip, err := a.ipAddrPool.Get()
 	if err != nil {
 		return err
 	}
 	assignIP := ip.IP.To4()
+	log.Debug("Assigning IP: ", assignIP)
 
+	buf = append((*sk)[:], assignIP...)
+	encrypt_data, iv, err := encrypt.Encrypt(secret, aes.BlockSize, buf)
+	if err != nil {
+		return err
+	}
 	/* buf should hold sk, secret and assigned ip address. */
-	buf = append((*sk)[:], (*secret)[:]...)
-	buf = append(buf[:], assignIP...)
+	buf = append(iv, encrypt_data[:]...)
 	_, err = conn.Write(buf)
 	if err != nil {
 		log.Error("Failed to sendback response:", err)
-		return err
 	}
 	return err
 }
