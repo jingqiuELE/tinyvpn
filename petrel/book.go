@@ -3,19 +3,21 @@ package main
 import (
 	"fmt"
 	"net"
-	"packet"
-	"session"
 	"sync"
 
-	"github.com/codeskyblue/go-sh"
+	"github.com/jingqiuELE/tinyvpn/internal/packet"
+	"github.com/jingqiuELE/tinyvpn/internal/session"
+	"github.com/songgao/water"
+	"github.com/songgao/water/waterutil"
+
 	"github.com/songgao/water"
 	"github.com/songgao/water/waterutil"
 )
 
 type Book struct {
 	sync.RWMutex
-	ipToSession map[string]session.Key
-	sessionToIp map[session.Key]string
+	ipToSession map[string]session.Index
+	sessionToIp map[session.Index]string
 }
 
 type BookServer struct {
@@ -26,18 +28,17 @@ type BookServer struct {
 }
 
 func newBookServer(pOut, pIn chan packet.Packet, vpnnet string, tun *water.Interface) (bs *BookServer, err error) {
-	bs = new(BookServer)
-	bs.book = newBook()
-	bs.pOut = pOut
-	bs.pIn = pIn
-	bs.tun = tun
+	bs = &BookServer{
+		book: newBook(),
+		pOut: pOut,
+		pIn:  pIn,
+		tun:  tun,
+	}
 	return
 }
 
 func (bs *BookServer) start() {
-
 	go bs.listenTun()
-
 	for {
 		p, ok := <-bs.pIn
 		if !ok {
@@ -45,18 +46,20 @@ func (bs *BookServer) start() {
 			return
 		}
 		src_ip := waterutil.IPv4Source(p.Data)
-		log.Debug("BookServer: handling for client", src_ip)
+		log.Debug("Book: from client", src_ip)
+		log.Debug("Book: datalen=", len(p.Data))
 
 		bs.book.Add(src_ip.String(), p.Header.Sk)
-		bs.tun.Write(p.Data)
+		_, err := bs.tun.Write(p.Data)
+		if err != nil {
+			log.Error("Error writing to tun!", err)
+		}
 	}
 }
 
-const BUFFERSIZE = 1500
-
 /* Handle traffic from target to client */
 func (bs *BookServer) listenTun() error {
-	buffer := make([]byte, BUFFERSIZE)
+	buffer := make([]byte, packet.MTU)
 	for {
 		n, err := bs.tun.Read(buffer)
 		if err != nil {
@@ -75,10 +78,8 @@ func (bs *BookServer) listenTun() error {
 		}
 		log.Debug("Book: to client", dst_ip)
 
-		sk := bs.book.getSession(dst_ip.String())
-		log.Debug("Book: got session", sk)
-
 		p := packet.NewPacket()
+		sk := bs.book.getSession(dst_ip.String())
 		p.Header.Sk = sk
 		p.SetData(buffer[:n])
 		bs.pOut <- *p
@@ -87,28 +88,28 @@ func (bs *BookServer) listenTun() error {
 
 func newBook() *Book {
 	b := new(Book)
-	b.ipToSession = make(map[string]session.Key)
-	b.sessionToIp = make(map[session.Key]string)
+	b.ipToSession = make(map[string]session.Index)
+	b.sessionToIp = make(map[session.Index]string)
 	return b
 }
-func (b *Book) getSession(ip string) session.Key {
+func (b *Book) getSession(ip string) session.Index {
 	b.RLock()
 	key := b.ipToSession[ip]
 	b.RUnlock()
 	return key
 }
 
-func (b *Book) getIp(sessionKey session.Key) string {
+func (b *Book) getIp(sessionIndex session.Index) string {
 	b.RLock()
-	ip := b.sessionToIp[sessionKey]
+	ip := b.sessionToIp[sessionIndex]
 	b.RUnlock()
 	return ip
 }
 
-func (b *Book) Add(ip string, sessionKey session.Key) {
+func (b *Book) Add(ip string, sessionIndex session.Index) {
 	b.Lock()
-	b.ipToSession[ip] = sessionKey
-	b.sessionToIp[sessionKey] = ip
+	b.ipToSession[ip] = sessionIndex
+	b.sessionToIp[sessionIndex] = ip
 	b.Unlock()
 }
 

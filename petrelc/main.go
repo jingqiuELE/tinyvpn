@@ -2,13 +2,14 @@ package main
 
 import (
 	"errors"
-	"github.com/op/go-logging"
-	flag "github.com/spf13/pflag"
-	"logger"
 	"os"
 	"os/signal"
-	"packet"
 	"syscall"
+
+	"github.com/jingqiuELE/tinyvpn/internal/logger"
+	"github.com/jingqiuELE/tinyvpn/internal/packet"
+	"github.com/op/go-logging"
+	flag "github.com/spf13/pflag"
 )
 
 var log = logger.Get(logging.DEBUG)
@@ -17,21 +18,23 @@ func main() {
 	const channelSize = 10
 
 	var (
-		tcpPort, udpPort, authPort int
-		serverAddr                 string
-		eOut                       = make(chan packet.Packet, channelSize)
-		pOut                       = make(chan packet.Packet, channelSize)
-		eIn                        = make(chan packet.Packet, channelSize)
-		pIn                        = make(chan packet.Packet, channelSize)
+		authPort, connPort       int
+		serverAddr, connProtocol string
+		keyfile                  string
+		eOut                     = make(chan packet.Packet, channelSize)
+		pOut                     = make(chan packet.Packet, channelSize)
+		eIn                      = make(chan packet.Packet, channelSize)
+		pIn                      = make(chan packet.Packet, channelSize)
 	)
 
-	flag.StringVarP(&serverAddr, "serverAddr", "s", "0.0.0.0", "IP address of the server")
-	flag.IntVarP(&authPort, "auth", "a", 7282, "Port for the authentication service.")
-	flag.IntVarP(&tcpPort, "tcp", "t", 8272, "TCP port of connServer")
-	flag.IntVarP(&udpPort, "udp", "u", 8272, "UDP port of connServer")
+	flag.StringVarP(&serverAddr, "serverAddr", "s", "0.0.0.0", "IP address of server")
+	flag.IntVarP(&authPort, "authPort", "a", 7282, "Port of authServer.")
+	flag.IntVarP(&connPort, "connPort", "c", 8272, "port of connServer")
+	flag.StringVarP(&connProtocol, "connProtocol", "p", "udp", "transport protocol to connServer")
+	flag.StringVarP(&keyfile, "keyfile", "k", "./public.key", "public key for the Auth")
 	flag.Parse()
 
-	sk, secret, ip, err := authGetSession(serverAddr, authPort)
+	sk, secret, ip, err := authGetSession(serverAddr, authPort, keyfile)
 	if err != nil {
 		log.Error("Failed to auth myself:", err)
 		return
@@ -49,15 +52,16 @@ func main() {
 		return
 	}
 
-	err = startConnection(serverAddr, udpPort, eOut, eIn)
+	err = startConnection(serverAddr, connProtocol, connPort, eOut, eIn)
 	if err != nil {
 		log.Error("Faild to create Connection:", err)
 		return
 	}
 
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt, os.Kill, syscall.SIGTERM)
-	s := <-c
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, os.Kill)
+	signal.Notify(sigs, syscall.SIGTERM)
+	s := <-sigs
 	log.Notice("Received signal", errors.New(s.String()))
 	log.Notice("process quit")
 

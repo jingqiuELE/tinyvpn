@@ -1,16 +1,24 @@
 package main
 
 import (
+	"crypto/aes"
+	"crypto/rand"
+	"crypto/rsa"
 	"fmt"
 	"io"
 	"net"
-	"session"
 	"strconv"
+
+	"github.com/jingqiuELE/tinyvpn/internal/encrypt"
+	"github.com/jingqiuELE/tinyvpn/internal/rsautil"
+	"github.com/jingqiuELE/tinyvpn/internal/session"
 )
 
 const BUFFERSIZE = 1500
 
-func authGetSession(serverAddr string, port int) (sk session.Key, ss session.Secret, ip net.IP, err error) {
+func authGetSession(serverAddr string, port int, keyfile string) (sk session.Index, ss session.Secret, ip net.IP, err error) {
+	var publicKey rsa.PublicKey
+
 	authServer := serverAddr + ":" + strconv.Itoa(port)
 	raddr, err := net.ResolveTCPAddr("tcp", authServer)
 	if err != nil {
@@ -25,8 +33,22 @@ func authGetSession(serverAddr string, port int) (sk session.Key, ss session.Sec
 	}
 	defer conn.Close()
 
-	secret := []byte("apple:juice")
-	_, err = conn.Write(secret)
+	secret, err := session.NewSecret()
+	if err != nil {
+		log.Error("Failed to create new Secret:", err)
+		return
+	}
+	log.Debug("Generated session secret: ", secret)
+	ss = *secret
+
+	rsautil.LoadKey(keyfile, &publicKey)
+	encrypt_session_key, err := rsa.EncryptPKCS1v15(rand.Reader, &publicKey, (*secret)[:])
+	if err != nil {
+		fmt.Println("Error encrypting session key ", err.Error())
+		return
+	}
+
+	_, err = conn.Write(encrypt_session_key)
 	if err != nil {
 		fmt.Println("Error writing:", err)
 		return
@@ -41,20 +63,14 @@ func authGetSession(serverAddr string, port int) (sk session.Key, ss session.Sec
 		}
 	}
 
-	if n >= (session.KeyLen + session.SecretLen + net.IPv4len) {
-		prev := 0
-		next := session.KeyLen
-		copy(sk[:], buf[prev:next])
+	iv := buf[0:aes.BlockSize]
+	payload := buf[aes.BlockSize:n]
+	data, err := encrypt.Decrypt((*secret)[:], iv, payload)
 
-		prev = next
-		next += session.SecretLen
-		copy(ss[:], buf[prev:next])
+	copy(sk[:], data[0:session.IndexLen])
 
-		prev = next
-		ip = net.IPv4(buf[prev], buf[prev+1],
-			buf[prev+2], buf[prev+3])
-	}
-
+	index := session.IndexLen
+	ip = net.IPv4(data[index], data[index+1], data[index+2], data[index+3])
 	log.Info("Assigned IP address:", ip.String())
 
 	return

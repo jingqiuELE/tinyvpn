@@ -3,7 +3,7 @@ package encrypt
 import (
 	"bytes"
 	"fmt"
-	"packet"
+	"github.com/jingqiuELE/tinyvpn/internal/packet"
 	"testing"
 )
 

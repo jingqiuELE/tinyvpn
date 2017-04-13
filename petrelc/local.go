@@ -1,10 +1,10 @@
 package main
 
 import (
+	"github.com/jingqiuELE/tinyvpn/internal/packet"
+	"github.com/jingqiuELE/tinyvpn/internal/tunnel"
 	"github.com/songgao/water"
 	"net"
-	"packet"
-	"tunnel"
 )
 
 /* Handle client's traffic, wrap each packet with outer IP Header */
@@ -16,6 +16,11 @@ func startListenTun(pIn, pOut chan packet.Packet, ip net.IP) error {
 	}
 
 	err = tunnel.AddAddr(tun, ip.String())
+	if err != nil {
+		return err
+	}
+
+	err = tunnel.SetMtu(tun, packet.MTU)
 	if err != nil {
 		return err
 	}
@@ -33,17 +38,17 @@ func startListenTun(pIn, pOut chan packet.Packet, ip net.IP) error {
 
 /* handle traffic from client to target */
 func handleTunOut(tun *water.Interface, pOut chan packet.Packet) {
-	buf := make([]byte, BUFFERSIZE)
 	for {
+		buf := make([]byte, packet.MTU)
 		n, err := tun.Read(buf)
 		if err != nil {
 			log.Error("Reading from tunnel:", err)
 			return
 		}
 
-		log.Debug("received client packet:", buf[:n])
 		p := packet.NewPacket()
 		p.SetData(buf[:n])
+
 		pOut <- *p
 	}
 }

@@ -1,18 +1,18 @@
 package main
 
 import (
+	"github.com/jingqiuELE/tinyvpn/internal/packet"
+	"github.com/jingqiuELE/tinyvpn/internal/session"
 	"net"
-	"packet"
-	"session"
 	"strconv"
 	"sync"
 )
 
 type ConnServer struct {
 	sync.RWMutex
-	connMap map[session.Key]Connection
-	eout    chan packet.Packet
-	ein     chan packet.Packet
+	connMap map[session.Index]Connection
+	eOut    chan packet.Packet
+	eIn     chan packet.Packet
 }
 
 type UConnection struct {
@@ -47,16 +47,20 @@ func (t TConnection) writePacket(p packet.Packet) error {
 	err := packet.MarshalToStream(p, t.TCPConn)
 	if err != nil {
 		log.Error("Failed to write Packet to TCP client:", err)
+	} else {
+		log.Debug("packet send to client:", p)
 	}
+
 	return err
 }
 
 func newConnServer(serverIP string, tcpPort int, udpPort int,
-	eout chan packet.Packet, ein chan packet.Packet) (*ConnServer, error) {
-	c := new(ConnServer)
-	c.connMap = make(map[session.Key]Connection)
-	c.eout = eout
-	c.ein = ein
+	eOut chan packet.Packet, eIn chan packet.Packet) (*ConnServer, error) {
+	c := &ConnServer{
+		connMap: make(map[session.Index]Connection),
+		eOut:    eOut,
+		eIn:     eIn,
+	}
 
 	if tcpPort != 0 {
 		err := c.startTCPListener(serverIP, tcpPort)
@@ -75,15 +79,14 @@ func newConnServer(serverIP string, tcpPort int, udpPort int,
 	}
 
 	go func() {
+		var sk session.Index
 		for {
-			p := <-c.eout
-			sk, err := session.NewKey()
-			if err != nil {
-				continue
-			}
+			p := <-c.eOut
 			copy(sk[:], p.Header.Sk[:])
 
-			conn, ok := c.connMap[*sk]
+			c.RLock()
+			conn, ok := c.connMap[sk]
+			c.RUnlock()
 			if ok {
 				conn.writePacket(p)
 			}
@@ -114,7 +117,7 @@ func (c *ConnServer) startUDPListener(serverIP string, port int) error {
 			if err != nil {
 				return
 			}
-			c.ein <- p
+			c.eIn <- p
 		}
 	}()
 	return err
@@ -141,6 +144,7 @@ func (c *ConnServer) startTCPListener(serverIP string, port int) error {
 				log.Error(err)
 				return
 			}
+			log.Info("New tcp connection accepted.")
 			go c.handleTCPConn(conn)
 		}
 	}()
@@ -148,23 +152,26 @@ func (c *ConnServer) startTCPListener(serverIP string, port int) error {
 }
 
 func (c *ConnServer) handleTCPConn(conn *net.TCPConn) error {
-	p, err := readPacketFromTCP(conn)
-	if err != nil {
-		log.Error(err)
-		return err
+	var err error
+	for {
+		p, err := readPacketFromTCP(conn)
+		if err != nil {
+			log.Error(err)
+			break
+		}
+
+		t := new(TConnection)
+		t.TCPConn = conn
+
+		sk := new(session.Index)
+		copy(sk[:], p.Header.Sk[:])
+
+		c.Lock()
+		c.connMap[*sk] = t
+		c.Unlock()
+
+		c.eIn <- p
 	}
-
-	t := new(TConnection)
-	t.TCPConn = conn
-
-	sk := new(session.Key)
-	copy(sk[:], p.Header.Sk[:])
-
-	c.Lock()
-	c.connMap[*sk] = t
-	c.Unlock()
-
-	c.ein <- p
 	return err
 }
 
@@ -178,7 +185,9 @@ func readPacketFromTCP(t *net.TCPConn) (packet.Packet, error) {
 
 func (c *ConnServer) readPacketFromUDP(u *net.UDPConn) (packet.Packet, error) {
 	var p packet.Packet
-	buf := make([]byte, BUFFERSIZE)
+	var sk session.Index
+
+	buf := make([]byte, packet.PacketSize)
 	n, cliaddr, err := u.ReadFromUDP(buf)
 	if err != nil {
 		log.Error("reading from ", cliaddr.String(), err)
@@ -194,14 +203,10 @@ func (c *ConnServer) readPacketFromUDP(u *net.UDPConn) (packet.Packet, error) {
 	uc := new(UConnection)
 	uc.UDPAddr = cliaddr
 
-	sk := new(session.Key)
 	copy(sk[:], p.Header.Sk[:])
-
 	c.Lock()
-	c.connMap[*sk] = uc
+	c.connMap[sk] = uc
 	c.Unlock()
-
-	log.Debug("packet received from UDP listener:", p.Header.Iv, p.Header.Sk, p.Header.Len)
 
 	return p, err
 }
