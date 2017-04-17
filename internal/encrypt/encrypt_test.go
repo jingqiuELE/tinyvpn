@@ -1,9 +1,9 @@
-package petrel
+package encrypt
 
 import (
 	"bytes"
 	"fmt"
-	"packet"
+	"github.com/jingqiuELE/tinyvpn/internal/packet"
 	"testing"
 )
 
@@ -41,7 +41,7 @@ func Test_EncryptPacket(t *testing.T) {
 	const testText = "Some plain text to be encrypted and decrypted"
 	p := packet.Packet{
 		Header: packet.PacketHeader{
-			Sk: []byte("SESSIN"),
+			Sk: [...]byte{'S', 'E', 'S', 'S', 'I', 'N'},
 		},
 		Data: []byte(testText),
 	}
@@ -49,11 +49,6 @@ func Test_EncryptPacket(t *testing.T) {
 	err := EncryptPacket(&p, key)
 	if err != nil {
 		t.Error("Failed to encrypt the packet.", err)
-		return
-	}
-
-	if p.Header.Iv == nil {
-		t.Error("IV was not generated.")
 		return
 	}
 

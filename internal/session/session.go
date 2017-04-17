@@ -1,3 +1,5 @@
+//session includes the type definition for a client's session.
+//A session has an index, which maps to a randomly generated session secret.
 package session
 
 import (
@@ -5,17 +7,17 @@ import (
 	"fmt"
 )
 
-const KeyLen = 6
+const IndexLen = 6
+const SecretLen = 32
 
-type Key [KeyLen]byte
-type Secret [32]byte
+type Index [IndexLen]byte
+type Secret [SecretLen]byte
 
-func NewKey() (*Key, error) {
-	k := new(Key)
+func NewIndex() (*Index, error) {
+	k := new(Index)
 	_, err := rand.Read(k[:])
 	if err != nil {
 		fmt.Println("Error:", err)
-		return k, err
 	}
 	return k, err
 }
