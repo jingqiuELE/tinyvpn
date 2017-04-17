@@ -2,19 +2,20 @@ package main
 
 import (
 	"errors"
+	"os"
+	"os/signal"
+	"syscall"
+
 	"github.com/jingqiuELE/tinyvpn/internal/logger"
 	"github.com/jingqiuELE/tinyvpn/internal/packet"
 	"github.com/jingqiuELE/tinyvpn/internal/tunnel"
 	"github.com/op/go-logging"
 	"github.com/songgao/water"
-	"os"
-	"os/signal"
-	"syscall"
 
 	flag "github.com/spf13/pflag"
 )
 
-var log = logger.Get(logging.ERROR)
+var log = logger.Get(logging.DEBUG)
 
 func main() {
 
@@ -22,6 +23,7 @@ func main() {
 	var (
 		tcpPort, udpPort, authPort int
 		serverAddr, vpnnet         string
+		keyfile                    string
 
 		eOut = make(chan packet.Packet, channelSize)
 		pOut = make(chan packet.Packet, channelSize)
@@ -34,11 +36,13 @@ func main() {
 	flag.IntVarP(&udpPort, "udp", "u", 8272, "UDP port to listen to, 0 to disable udp")
 	flag.StringVarP(&serverAddr, "serverAddr", "s", "0.0.0.0", "IP address the server suppose to listen to, e.g. 127.0.0.1")
 	flag.StringVarP(&vpnnet, "vpnnet", "n", "172.0.1.1/24", "Subnet netmask for the VPN subnet, e.g. 172.0.0.1/24")
+	flag.StringVarP(&keyfile, "keyfile", "k", "./private.key", "private key for the Auth server")
 	flag.Parse()
 
-	log.Infof("Values of the config are: Auth %v, TCP %v, UDP %v, ServerAddr %v, vpnnet %v", authPort, tcpPort, udpPort, serverAddr, vpnnet)
+	log.Infof("Values of the config are: Auth %v, TCP %v, UDP %v, ServerAddr %v, vpnnet %v, keyfile %v",
+		authPort, tcpPort, udpPort, serverAddr, vpnnet, keyfile)
 
-	a, err := newAuthServer(serverAddr, authPort, vpnnet)
+	a, err := newAuthServer(serverAddr, authPort, vpnnet, keyfile)
 	if err != nil {
 		log.Errorf("Failed to create AuthServer %v", err)
 		return

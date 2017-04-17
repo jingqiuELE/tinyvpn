@@ -12,9 +12,10 @@ CLIENT_SRC = ../petrelc/main.go ../petrelc/auth.go ../petrelc/connection.go \
 
 WORK_DIR = /projects/tinyvpn
 SCRIPTS = ./scripts
+KEY = ./keys
 
 build: docker-mininet docker-tcpdump
-	cd docker-mininet; docker build -t docker-mininet . 
+	cd docker-mininet; docker build -t docker-mininet .
 	cd docker-tcpdump; docker build -t docker-tcpdump .
 
 docker-mininet:
@@ -28,7 +29,8 @@ run: clean start_container $(SERVER) $(CLIENT)
 	docker cp $(SERVER) $(MININET_NAME):$(WORK_DIR)
 	docker cp $(CLIENT) $(MININET_NAME):$(WORK_DIR)
 	docker cp $(SCRIPTS) $(MININET_NAME):$(WORK_DIR)
-	docker exec -it $(MININET_NAME) $(CMD_START_MN) 
+	docker cp $(KEY) $(MININET_NAME):$(WORK_DIR)
+	docker exec -it $(MININET_NAME) $(CMD_START_MN)
 
 $(SERVER): $(SERVER_SRC)
 	cd ../petrel; go build
@@ -37,7 +39,7 @@ $(CLIENT): $(CLIENT_SRC)
 	cd ../petrelc; go build
 
 start_container:
-	docker run --privileged --cap-add=ALL -v /lib/modules:/lib/modules -d -it --name $(MININET_NAME) docker-mininet 
+	docker run --privileged --cap-add=ALL -v /lib/modules:/lib/modules -d -it --name $(MININET_NAME) docker-mininet
 	docker cp tinyvpn_topo.py $(MININET_NAME):/projects/
 	docker exec $(MININET_NAME) $(CMD_START_OVS)
 
