@@ -1,13 +1,13 @@
 package packet
 
 import (
-	"bytes"
 	"encoding/binary"
 	"fmt"
+	"io"
+
 	"github.com/jingqiuELE/tinyvpn/internal/logger"
 	"github.com/jingqiuELE/tinyvpn/internal/session"
 	"github.com/op/go-logging"
-	"io"
 )
 
 var log = logger.Get(logging.ERROR)
@@ -18,76 +18,73 @@ var log = logger.Get(logging.ERROR)
 //one frame without IP fragmentation.
 const PacketSize = 1500 - 28
 
-const IvLen = 4
+const IvLen = 12
 const PacketHeaderSize = IvLen + session.IndexLen + 2
 const MTU = PacketSize - PacketHeaderSize
 
 type Iv [IvLen]byte
 
-/* Fixed-size PacketHeader to ease marshal and unmarshal */
-type PacketHeader struct {
-	Iv  Iv
-	Sk  session.Index
-	Len uint16
-}
-
 type Packet struct {
-	Header PacketHeader
-	Data   []byte
+	Iv   Iv
+	Sk   session.Index
+	Len  uint16
+	Data []byte
 }
 
-func (h PacketHeader) String() string {
-	return fmt.Sprintf("Iv: [% x], Sk: [% x], len: %d", h.Iv, h.Sk, h.Len)
+func (p Packet) String() string {
+	return fmt.Sprintf("Iv: [% x], Sk: [% x], len: %d", p.Iv, p.Sk, p.Len, p.Data[:8])
 }
 
-func NewPacket() *Packet {
-	p := new(Packet)
-	return p
-}
+func Decode(r io.Reader) (Packet, error) {
+	var p Packet
 
-func (p *Packet) SetData(data []byte) {
-	p.Header.Len = uint16(len(data))
-	p.Data = data
-}
-
-func UnmarshalFromSlice(buf []byte) (Packet, error) {
-	reader := bytes.NewReader(buf)
-	return UnmarshalFromStream(reader)
-}
-
-func MarshalToSlice(p Packet) ([]byte, error) {
-	buf := new(bytes.Buffer)
-	err := MarshalToStream(p, buf)
-	return buf.Bytes(), err
-}
-
-func UnmarshalFromStream(r io.Reader) (Packet, error) {
-	p := NewPacket()
-
-	err := binary.Read(r, binary.BigEndian, &p.Header)
+	_, err := io.ReadFull(r, p.Iv[:])
 	if err != nil {
-		log.Error("Binary read p.Header failed:", err)
-		return *p, err
+		log.Error("failed to read initialization vector Iv:", err)
+		return p, err
 	}
-	log.Debug("UnmarshalFromStream-->p.Header:", p.Header)
 
-	p.Data = make([]byte, p.Header.Len)
+	_, err = io.ReadFull(r, p.Sk[:])
+	if err != nil {
+		log.Error("failed to read session key Sk:", err)
+		return p, err
+	}
+
+	err = binary.Read(r, binary.BigEndian, &p.Len)
+	if err != nil {
+		log.Error("binary read p.Header failed:", err)
+		return p, err
+	}
+
+	p.Data = make([]byte, p.Len)
 	n, err := io.ReadFull(r, p.Data)
 	if err != nil {
-		log.Error("Read %d bytes", n)
+		log.Error("read %d bytes", n)
 		log.Error(err)
 	}
-	return *p, err
+	return p, err
 }
 
-func MarshalToStream(p Packet, w io.Writer) error {
-	err := binary.Write(w, binary.BigEndian, p.Header)
+func Encode(p Packet, w io.Writer) error {
+	_, err := w.Write(p.Iv[:])
 	if err != nil {
-		log.Error("binary write Packet Header to stream failed:", err)
+		log.Error("failed to write Iv:", err)
 		return err
 	}
 
-	err = binary.Write(w, binary.BigEndian, p.Data)
+	_, err = w.Write(p.Sk[:])
+	if err != nil {
+		log.Error("failed to write Sk:", err)
+		return err
+	}
+
+	err = binary.Write(w, binary.BigEndian, p.Len)
+	if err != nil {
+		log.Error("binary write Packet data lengh to stream failed:", err)
+		return err
+	}
+
+	_, err = w.Write(p.Data)
 	if err != nil {
 		log.Error("binary read Packet Data failed:", err)
 	}

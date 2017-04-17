@@ -2,9 +2,10 @@ package tunnel
 
 import (
 	"fmt"
+	"strconv"
+
 	"github.com/codeskyblue/go-sh"
 	"github.com/songgao/water"
-	"strconv"
 )
 
 func AddAddr(t *water.Interface, addr string) error {

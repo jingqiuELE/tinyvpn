@@ -5,6 +5,7 @@ import (
 	"net"
 	"sync"
 
+	sh "github.com/codeskyblue/go-sh"
 	"github.com/jingqiuELE/tinyvpn/internal/packet"
 	"github.com/jingqiuELE/tinyvpn/internal/session"
 	"github.com/songgao/water"
