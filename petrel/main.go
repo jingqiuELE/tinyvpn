@@ -24,8 +24,7 @@ func main() {
 	)
 
 	authPort := flag.IntP("auth", "a", 7282, "Port for the authentication service to listen to.")
-	tcpPort := flag.IntP("tcp", "t", 8272, "TCP port to listen to, 0 to disable tcp")
-	udpPort := flag.IntP("udp", "u", 8272, "UDP port to listen to, 0 to disable udp")
+	port := flag.IntP("port", "p", 8272, "Port to connect to")
 	serverAddr := flag.StringP("serverAddr", "s", "0.0.0.0", "IP address the server suppose to listen to, e.g. 127.0.0.1")
 	vpnnet := flag.StringP("vpnnet", "n", "172.0.1.1/24", "Subnet netmask for the VPN subnet, e.g. 172.0.0.1/24")
 	mode := os.Args[1]
@@ -34,15 +33,15 @@ func main() {
 	case "client":
 		keyfile := flag.StringP("keyfile", "k", "./public.key", "Public key file used for client authentication")
 		protocol := flag.StringP("protocol", "t", "tcp", "Protocol used for connection, tcp or udp")
-		port := flag.IntP("port", "p", 8272, "Port to connect to")
+		flag.Parse()
 		runClient(*serverAddr, *authPort, *port, *keyfile, *protocol, eOut, pOut, eIn, eIn)
 	case "server":
 		keyfile := flag.StringP("keyfile", "k", "./private.key", "Private key for server to use for authentication")
-		runServer(*serverAddr, *vpnnet, *keyfile, *authPort, *tcpPort, *udpPort, eOut, pOut, eIn, pIn)
+		flag.Parse()
+		runServer(*serverAddr, *vpnnet, *keyfile, *authPort, *port, *port, eOut, pOut, eIn, pIn)
 	default:
 		log.Fatalf("Petrel needs to run either as client or server, please try\n\npetrel client\n")
 	}
-
 }
 
 func runClient(serverAddr string, authPort, port int, keyfile string, protocol string, eOut, pOut, eIn, pIn chan *Packet) {
