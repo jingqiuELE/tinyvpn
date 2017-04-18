@@ -1,34 +1,27 @@
 package main
 
 import (
-	"fmt"
-	"net"
 	"sync"
 
 	sh "github.com/codeskyblue/go-sh"
-	"github.com/jingqiuELE/tinyvpn/internal/packet"
-	"github.com/jingqiuELE/tinyvpn/internal/session"
-	"github.com/songgao/water"
-	"github.com/songgao/water/waterutil"
-
 	"github.com/songgao/water"
 	"github.com/songgao/water/waterutil"
 )
 
 type Book struct {
 	sync.RWMutex
-	ipToSession map[string]session.Index
-	sessionToIp map[session.Index]string
+	ipToSession map[string]Index
+	sessionToIp map[Index]string
 }
 
 type BookServer struct {
 	book *Book
-	pOut chan packet.Packet
-	pIn  chan packet.Packet
+	pOut chan *Packet
+	pIn  chan *Packet
 	tun  *water.Interface
 }
 
-func newBookServer(pOut, pIn chan packet.Packet, vpnnet string, tun *water.Interface) (bs *BookServer, err error) {
+func newBookServer(pOut, pIn chan *Packet, vpnnet string, tun *water.Interface) (bs *BookServer, err error) {
 	bs = &BookServer{
 		book: newBook(),
 		pOut: pOut,
@@ -50,7 +43,7 @@ func (bs *BookServer) start() {
 		log.Debug("Book: from client", src_ip)
 		log.Debug("Book: datalen=", len(p.Data))
 
-		bs.book.Add(src_ip.String(), p.Header.Sk)
+		bs.book.Add(src_ip.String(), p.Sk)
 		_, err := bs.tun.Write(p.Data)
 		if err != nil {
 			log.Error("Error writing to tun!", err)
@@ -60,7 +53,7 @@ func (bs *BookServer) start() {
 
 /* Handle traffic from target to client */
 func (bs *BookServer) listenTun() error {
-	buffer := make([]byte, packet.MTU)
+	buffer := make([]byte, MTU)
 	for {
 		n, err := bs.tun.Read(buffer)
 		if err != nil {
@@ -68,46 +61,38 @@ func (bs *BookServer) listenTun() error {
 			return err
 		}
 
-		var dst_ip net.IP
-		if waterutil.IsIPv4(buffer) {
-			dst_ip = waterutil.IPv4Destination(buffer[:n])
-		} else if waterutil.IsIPv6(buffer) {
-			// Water does not handle IPv6 packet destination yet or IPv6 works totally different?
-			fmt.Errorf("IPv6 packet cannot be properly handled atm.")
-		} else {
-			panic("Packet not of IPv4 nor IPv6")
-		}
-		log.Debug("Book: to client", dst_ip)
+		dst_ip := waterutil.IPv4Destination(buffer[:n])
 
-		p := packet.NewPacket()
+		p := new(Packet)
 		sk := bs.book.getSession(dst_ip.String())
-		p.Header.Sk = sk
-		p.SetData(buffer[:n])
-		bs.pOut <- *p
+		p.Sk = sk
+		p.Data = buffer[:n]
+		log.Debug("Book: to client", p)
+		bs.pOut <- p
 	}
 }
 
 func newBook() *Book {
 	b := new(Book)
-	b.ipToSession = make(map[string]session.Index)
-	b.sessionToIp = make(map[session.Index]string)
+	b.ipToSession = make(map[string]Index)
+	b.sessionToIp = make(map[Index]string)
 	return b
 }
-func (b *Book) getSession(ip string) session.Index {
+func (b *Book) getSession(ip string) Index {
 	b.RLock()
 	key := b.ipToSession[ip]
 	b.RUnlock()
 	return key
 }
 
-func (b *Book) getIp(sessionIndex session.Index) string {
+func (b *Book) getIp(sessionIndex Index) string {
 	b.RLock()
 	ip := b.sessionToIp[sessionIndex]
 	b.RUnlock()
 	return ip
 }
 
-func (b *Book) Add(ip string, sessionIndex session.Index) {
+func (b *Book) Add(ip string, sessionIndex Index) {
 	b.Lock()
 	b.ipToSession[ip] = sessionIndex
 	b.sessionToIp[sessionIndex] = ip

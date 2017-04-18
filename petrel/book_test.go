@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"packet"
 	"testing"
 
 	"github.com/songgao/water"
@@ -35,23 +34,20 @@ func (rwc TestTunReadWriteCloser) Close() error {
 	return nil
 }
 
-var ttrwc TestTunReadWriteCloser
-var tun = &water.Interface{
-	ReadWriteCloser: ttrwc,
-}
-
 func TestBook(t *testing.T) {
-	pOut := make(chan packet.Packet)
-	pIn := make(chan packet.Packet)
+	pOut := make(chan *Packet)
+	pIn := make(chan *Packet)
 	vpnnet := "10.0.0.0/24"
 
+	var ttrwc TestTunReadWriteCloser
+	ttrwc.returnChan = make(chan []byte)
+	var tun = &water.Interface{
+		ReadWriteCloser: ttrwc,
+	}
 	// Define the dummy packets
-	op1 := packet.Packet{
-		Header: packet.PacketHeader{
-			Iv:  []byte("CLIENT_1"),
-			Sk:  []byte("SESS01"),
-			Len: 20,
-		},
+	op1 := Packet{
+		Iv: Iv{'C', 'L', 'I', 'E', 'N', 'T', '_', '1'},
+		Sk: Index{'S', 'E', 'S', 'S', '0', '1'},
 		Data: []byte{
 			0x54, 0x00, 0x14, 0x00, // [Ver4 + IHL=160bit] [DSCP+ECN] [LEN_LOW=20] [LEN_HIGH]
 			0x00, 0x00, 0x00, 0x00, // [ID_LOW=0] [ID_HIGH=0] [Flags=0, Fragment = 0]
@@ -62,12 +58,9 @@ func TestBook(t *testing.T) {
 		},
 	}
 
-	op2 := packet.Packet{
-		Header: packet.PacketHeader{
-			Iv:  []byte("CLIENT_2"),
-			Sk:  []byte("SESS02"),
-			Len: 20,
-		},
+	op2 := Packet{
+		Iv: Iv{'C', 'L', 'I', 'E', 'N', 'T', '_', '2'},
+		Sk: Index{'S', 'E', 'S', 'S', '0', '2'},
 		Data: []byte{
 			0x54, 0x00, 0x14, 0x00, // [Ver4 + IHL=160bit] [DSCP+ECN] [LEN_LOW=20] [LEN_HIGH]
 			0x00, 0x00, 0x00, 0x00, // [ID_LOW=0] [ID_HIGH=0] [Flags=0, Fragment = 0]
@@ -97,37 +90,27 @@ func TestBook(t *testing.T) {
 	}
 
 	bs, err := newBookServer(pOut, pIn, vpnnet, tun)
-	bs.start()
-
+	go bs.start()
 	if err != nil {
 		t.Error("Failed to create new book server", err)
 	}
-	pOut <- op1
-
-	bytesOut := ttrwc.lastWritten
-	// TODO: Test the correctness of the bytes out here
-	if len(bytesOut) == 0 {
-		t.Error("Zero bytes out")
-	}
-
-	pOut <- op2
-
-	bytesOut = ttrwc.lastWritten
-	// TODO: Test the correctness of the second packet bytes out
+	pIn <- &op1
+	pIn <- &op2
 
 	ttrwc.Return(ip1) // This should be returned to client 1
 
-	packetBack := <-pIn
-
-	if bytes.Compare(packetBack.Header.Sk, []byte("CLIENT_1")) != 0 {
+	packetBack := <-pOut
+	backSessionKey := [IndexLen]byte(packetBack.Sk)
+	if bytes.Compare(backSessionKey[:], []byte("SESS01")) != 0 {
 		t.Error("First packet returned did not get CLIENT_1 session key")
 	}
 
 	ttrwc.Return(ip2) // This should be returned to client 2
 
-	packetBack = <-pIn
+	packetBack = <-pOut
 
-	if bytes.Compare(packetBack.Header.Sk, []byte("CLIENT_2")) != 0 {
+	backSessionKey = [IndexLen]byte(packetBack.Sk)
+	if bytes.Compare(backSessionKey[:], []byte("SESS02")) != 0 {
 		t.Error("Second packet returned did not get CLIENT_2 session key")
 	}
 }
