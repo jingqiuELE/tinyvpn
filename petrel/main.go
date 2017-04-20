@@ -1,13 +1,9 @@
 package main
 
 import (
-	"errors"
 	"os"
-	"os/signal"
-	"syscall"
 
 	"github.com/op/go-logging"
-	"github.com/songgao/water"
 
 	flag "github.com/spf13/pflag"
 )
@@ -16,12 +12,6 @@ var log = GetLogger(logging.DEBUG)
 
 func main() {
 	const channelSize = 10
-	var (
-		eOut = make(chan *Packet, channelSize)
-		pOut = make(chan *Packet, channelSize)
-		eIn  = make(chan *Packet, channelSize)
-		pIn  = make(chan *Packet, channelSize)
-	)
 
 	authPort := flag.IntP("auth", "a", 7282, "Port for the authentication service to listen to.")
 	port := flag.IntP("port", "p", 8272, "Port to connect to")
@@ -34,111 +24,86 @@ func main() {
 		keyfile := flag.StringP("keyfile", "k", "./public.key", "Public key file used for client authentication")
 		protocol := flag.StringP("protocol", "t", "tcp", "Protocol used for connection, tcp or udp")
 		flag.Parse()
-		runClient(*serverAddr, *authPort, *port, *keyfile, *protocol, eOut, pOut, eIn, eIn)
+
+		err := runClient(*serverAddr, *authPort, *port, *keyfile, *protocol)
+		if err != nil {
+			log.Fatal(err)
+		}
 	case "server":
 		keyfile := flag.StringP("keyfile", "k", "./private.key", "Private key for server to use for authentication")
 		flag.Parse()
-		runServer(*serverAddr, *vpnnet, *keyfile, *authPort, *port, *port, eOut, pOut, eIn, pIn)
+
+		err := runServer(*serverAddr, *vpnnet, *keyfile, *authPort, *port, *port)
+		if err != nil {
+			log.Fatal(err)
+		}
 	default:
 		log.Fatalf("Petrel needs to run either as client or server, please try\n\npetrel client\n")
 	}
+
+	select {} // Block to prevent exit
 }
 
-func runClient(serverAddr string, authPort, port int, keyfile string, protocol string, eOut, pOut, eIn, pIn chan *Packet) {
+func runClient(serverAddr string, authPort, port int, keyfile string, protocol string) error {
 
+	// Authenticate with auth server first
 	sk, secret, ip, err := authGetSession(serverAddr, authPort, keyfile)
 	if err != nil {
 		log.Error("Failed to auth myself:", err)
-		return
+		return err
 	}
 
-	err = startListenTun(pIn, pOut, ip)
+	// Create local tun device
+	book := &StaticBook{sk, ip.String()}
+	toTun, fromTun, err := startTUN(ip.String(), MTU, book)
 	if err != nil {
-		log.Error("Failed to start Tunnel Listener:", err)
-		return
+		log.Error("Failed to start Tunnel device:", err)
+		return err
 	}
 
-	err = startEncrypt(eOut, eIn, pOut, pIn, sk, secret)
+	toServer, fromServer, err := startConnection(serverAddr, protocol, port)
 	if err != nil {
-		log.Error("Failed to create EncryptServer:", err)
-		return
+		log.Error("Failed to start connection to server:", err)
+		return err
 	}
 
-	err = startConnection(serverAddr, protocol, port, eOut, eIn)
-	if err != nil {
-		log.Error("Faild to create Connection:", err)
-		return
-	}
+	ss := &StaticSecretSource{secret}
 
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, os.Kill)
-	signal.Notify(sigs, syscall.SIGTERM)
-	s := <-sigs
-	log.Notice("Received signal", errors.New(s.String()))
-	log.Notice("process quit")
+	go encryptPackets(fromTun, toServer, ss)
+	go decryptPackets(fromServer, toTun, ss)
+
+	return nil
 }
 
-// TODO: Continue from here
-func runServer(serverAddr, vpnnet, keyfile string, authPort, tcpPort, udpPort int, eOut, pOut, eIn, pIn chan *Packet) {
+func runServer(serverAddr, vpnnet, keyfile string, authPort, tcpPort, udpPort int) error {
 	a, err := newAuthServer(serverAddr, authPort, vpnnet, keyfile)
 	if err != nil {
 		log.Errorf("Failed to create AuthServer %v", err)
-		return
+		return err
 	}
 
-	_, err = newConnServer(serverAddr, tcpPort, udpPort, eOut, eIn)
+	// Create local tun device
+	book := newDynBook()
+	toTun, fromTun, err := startTUN(vpnnet, MTU, book)
+	if err != nil {
+		log.Error("Failed to start Tunnel device:", err)
+		return err
+	}
+
+	toClient, fromClient, err := startConnServer(serverAddr, tcpPort, udpPort)
 	if err != nil {
 		log.Error("Failed to create ConnServer:", err)
-		return
+		return err
 	}
 
-	_, err = newEncryptServer(a, eOut, eIn, pOut, pIn)
-	if err != nil {
-		log.Error("Failed to create EncryptServer:", err)
-		return
-	}
-
-	tun, err := water.NewTUN("")
-	if err != nil {
-		log.Error("Error creating tun interface", err)
-		return
-	}
-	err = AddAddr(tun, vpnnet)
-	if err != nil {
-		log.Error(err)
-		return
-	}
-	err = SetMtu(tun, MTU)
-	if err != nil {
-		log.Error(err)
-		return
-	}
-	err = Bringup(tun)
-	if err != nil {
-		log.Error(err)
-		return
-	}
 	err = SetNAT()
 	if err != nil {
-		log.Error(err)
-		return
+		log.Error("Failed to setup NAT", err)
+		return err
 	}
 
-	b, err := newBookServer(pOut, pIn, vpnnet, tun)
-	if err != nil {
-		log.Error("Failed to create BookServer:", err)
-		return
-	}
+	go encryptPackets(fromTun, toClient, a)
+	go decryptPackets(fromClient, toTun, a)
 
-	//Receive system signal to stop the server.
-	go func() {
-		sigs := make(chan os.Signal, 1)
-		signal.Notify(sigs, os.Kill)
-		signal.Notify(sigs, syscall.SIGTERM)
-		s := <-sigs
-		log.Notice("Received signal", errors.New(s.String()))
-	}()
-
-	b.start()
-
+	return nil
 }

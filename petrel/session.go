@@ -13,6 +13,18 @@ const SecretLen = 32
 type Index [IndexLen]byte
 type Secret [SecretLen]byte
 
+func addSessionKey(in <-chan *Packet, sk Index) <-chan *Packet {
+	out := make(chan *Packet)
+	go func() {
+		for {
+			p := <-in
+			p.Sk = sk
+			out <- p
+		}
+	}()
+	return out
+}
+
 func NewIndex() (*Index, error) {
 	k := new(Index)
 	_, err := rand.Read(k[:])

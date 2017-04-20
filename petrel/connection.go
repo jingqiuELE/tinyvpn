@@ -2,141 +2,154 @@ package main
 
 import (
 	"bytes"
+	"errors"
+	"fmt"
 	"net"
 	"strconv"
-	"strings"
 	"sync"
 )
 
 type ConnServer struct {
 	sync.RWMutex
 	connMap map[Index]Connection
-	eOut    chan *Packet
-	eIn     chan *Packet
 }
 
 type UConnection struct {
-	UDPAddr *net.UDPAddr
+	Conn *net.UDPConn
+	Addr *net.UDPAddr
+	Pr   *PacketReader
 }
 
 type TConnection struct {
-	TCPConn *net.TCPConn
+	Conn *net.TCPConn
+	Pr   *PacketReader
 }
 
 type Connection interface {
 	writePacket(p *Packet) error
+	readPacket() (*Packet, error)
 }
-
-var ProxyConn *net.UDPConn
 
 func (u UConnection) writePacket(p *Packet) error {
 	var buf bytes.Buffer
-	err := Encode(p, &buf)
+	err := p.Encode(&buf)
 	if err != nil {
 		return err
 	}
 
-	_, err = ProxyConn.WriteToUDP(buf.Bytes(), u.UDPAddr)
-	if err != nil {
-		log.Error("Failed to write Packet to UDP client:", err)
-	}
+	_, err = u.Conn.WriteToUDP(buf.Bytes(), u.Addr)
 	return err
+}
+
+func (u UConnection) readPacket() (*Packet, error) {
+	return u.Pr.NextPacket()
 }
 
 func (t TConnection) writePacket(p *Packet) error {
-	err := Encode(p, t.TCPConn)
-	if err != nil {
-		log.Error("Failed to write Packet to TCP client:", err)
-	} else {
-		log.Debug("packet send to client:", p)
-	}
-
-	return err
+	return p.Encode(t.Conn)
 }
 
-func newConnServer(serverIP string, tcpPort int, udpPort int,
-	eOut, eIn chan *Packet) (*ConnServer, error) {
-	c := &ConnServer{
-		connMap: make(map[Index]Connection),
-		eOut:    eOut,
-		eIn:     eIn,
-	}
+func (t TConnection) readPacket() (*Packet, error) {
+	return t.Pr.NextPacket()
+}
+
+func startConnServer(serverIP string, tcpPort, udpPort int) (chan<- *Packet, <-chan *Packet, error) {
+	c := &ConnServer{connMap: make(map[Index]Connection)}
+	fromClient := make(chan *Packet)
+	var fromTcpClient, fromUdpClient <-chan *Packet
+	var err error
 
 	if tcpPort != 0 {
-		err := c.startTCPListener(serverIP, tcpPort)
+		fromTcpClient, err = c.startTCPListener(serverIP, tcpPort)
 		if err != nil {
 			log.Error(err)
-			return c, err
+			return nil, nil, err
 		}
 	}
 
 	if udpPort != 0 {
-		err := c.startUDPListener(serverIP, udpPort)
+		fromUdpClient, err = c.startUDPListener(serverIP, udpPort)
 		if err != nil {
 			log.Error(err)
-			return c, err
+			return nil, nil, err
 		}
 	}
 
 	go func() {
-		var sk Index
 		for {
-			p := <-c.eOut
-			sk = p.Sk // Simple assignment would copy an array in go
+			select {
+			case p := <-fromTcpClient:
+				fromClient <- p
+			case p := <-fromUdpClient:
+				fromClient <- p
+			}
+		}
+	}()
+
+	toClient := c.handleOut()
+	return toClient, fromClient, nil
+}
+
+func (c *ConnServer) handleOut() chan<- *Packet {
+	toClient := make(chan *Packet)
+	go func() {
+		for {
+			p := <-toClient
 
 			c.RLock()
-			conn, ok := c.connMap[sk]
+			conn, ok := c.connMap[p.Sk]
 			c.RUnlock()
+
 			if ok {
 				conn.writePacket(p)
 			}
 		}
 	}()
-	return c, nil
+	return toClient
 }
 
-func (c *ConnServer) startUDPListener(serverIP string, port int) error {
+func (c *ConnServer) startUDPListener(serverIP string, port int) (<-chan *Packet, error) {
 	serverAddr := serverIP + ":" + strconv.Itoa(port)
 	listenAddr, err := net.ResolveUDPAddr("udp", serverAddr)
 	if err != nil {
 		log.Error("Error when resoving UDP Address!")
-		return err
+		return nil, err
 	}
 
 	pudp, err := net.ListenUDP("udp", listenAddr)
 	if err != nil {
 		log.Error(err)
-		return err
+		return nil, err
 	}
 
-	ProxyConn = pudp
-
+	fromClient := make(chan *Packet)
 	go func() {
 		for {
 			p, err := c.readPacketFromUDP(pudp)
 			if err != nil {
 				return
 			}
-			c.eIn <- p
+			fromClient <- p
 		}
 	}()
-	return err
+	return fromClient, err
 }
 
-func (c *ConnServer) startTCPListener(serverIP string, port int) error {
+func (c *ConnServer) startTCPListener(serverIP string, port int) (<-chan *Packet, error) {
 	serverAddr := serverIP + ":" + strconv.Itoa(port)
 	listenAddr, err := net.ResolveTCPAddr("tcp", serverAddr)
 	if err != nil {
 		log.Error(err)
-		return err
+		return nil, err
 	}
 
 	ln, err := net.ListenTCP("tcp", listenAddr)
 	if err != nil {
 		log.Error(err)
-		return err
+		return nil, err
 	}
 
+	fromClient := make(chan *Packet)
 	go func() {
 		for {
 			conn, err := ln.AcceptTCP()
@@ -145,41 +158,28 @@ func (c *ConnServer) startTCPListener(serverIP string, port int) error {
 				return
 			}
 			log.Info("New tcp connection accepted.")
-			go c.handleTCPConn(conn)
+			go c.handleTCPConn(conn, fromClient)
 		}
 	}()
-	return err
+	return fromClient, err
 }
 
-func (c *ConnServer) handleTCPConn(conn *net.TCPConn) error {
-	var err error
+func (c *ConnServer) handleTCPConn(conn *net.TCPConn, fromClient chan<- *Packet) {
+	t := TConnection{Conn: conn, Pr: &PacketReader{conn}}
 	for {
-		p, err := readPacketFromTCP(conn)
+		p, err := t.readPacket()
 		if err != nil {
 			log.Error(err)
-			break
+			return
 		}
 
-		t := new(TConnection)
-		t.TCPConn = conn
-
-		sk := p.Sk
-
+		log.Debug("CONN RECEIVED:", p)
 		c.Lock()
-		c.connMap[sk] = t
+		c.connMap[p.Sk] = t
 		c.Unlock()
 
-		c.eIn <- p
+		fromClient <- p
 	}
-	return err
-}
-
-func readPacketFromTCP(t *net.TCPConn) (*Packet, error) {
-	p, err := Decode(t)
-	if err != nil {
-		log.Error("UnmarshalFromStream failed:", err)
-	}
-	return p, err
 }
 
 func (c *ConnServer) readPacketFromUDP(u *net.UDPConn) (*Packet, error) {
@@ -190,14 +190,16 @@ func (c *ConnServer) readPacketFromUDP(u *net.UDPConn) (*Packet, error) {
 		return nil, err
 	}
 
-	p, err := Decode(bytes.NewReader(buf))
+	pr := PacketReader{bytes.NewReader(buf)}
+	p, err := pr.NextPacket()
 	if err != nil {
 		log.Error("creating Packet from buffer:", err)
 		return p, err
 	}
 
+	// FIXME: Does this mean a new UConnection is created for every UDP packet?
 	uc := new(UConnection)
-	uc.UDPAddr = cliaddr
+	uc.Addr = cliaddr
 
 	sk := p.Sk
 	c.Lock()
@@ -207,103 +209,83 @@ func (c *ConnServer) readPacketFromUDP(u *net.UDPConn) (*Packet, error) {
 	return p, err
 }
 
-func startConnection(serverAddr string, protocol string, port int, eOut, eIn chan *Packet) error {
+func startConnection(serverAddr string, protocol string, port int) (chan<- *Packet, <-chan *Packet, error) {
 	connServer := serverAddr + ":" + strconv.Itoa(port)
 
-	if strings.Compare(protocol, "udp") == 0 {
-		return startUDPConnection(connServer, port, eOut, eIn)
+	var c Connection
+	var err error
+	if protocol == "udp" {
+		c, err = createUDPConnection(connServer)
+	} else if protocol == "tcp" {
+		c, err = createTCPConnection(connServer)
 	} else {
-		return startTCPConnection(connServer, port, eOut, eIn)
+		return nil, nil, errors.New(fmt.Sprintf("unknown protocol %v", protocol))
 	}
+
+	if err != nil {
+		return nil, nil, err
+	}
+
+	toServer := handleOut(c)
+	fromServer := handleIn(c)
+	return fromServer, toServer, nil
 }
 
-func startUDPConnection(connServer string, port int, eOut, eIn chan *Packet) error {
-	raddr, err := net.ResolveUDPAddr("udp", connServer)
-	if err != nil {
-		log.Error("Resolving connServer:", err)
-		return err
-	}
-
-	conn, err := net.DialUDP("udp", nil, raddr)
-	if err != nil {
-		log.Error("Dial remote:", err)
-		return err
-	}
-
-	go handleUDPOut(conn, eOut)
-	go handleUDPIn(conn, eIn)
-	return nil
-}
-
-func startTCPConnection(connServer string, port int, eOut, eIn chan *Packet) error {
+func createTCPConnection(connServer string) (Connection, error) {
 	raddr, err := net.ResolveTCPAddr("tcp", connServer)
 	if err != nil {
 		log.Error("Resolving connServer:", err)
-		return err
+		return nil, err
 	}
 
 	conn, err := net.DialTCP("tcp", nil, raddr)
 	if err != nil {
 		log.Error("Dial remote:", err)
-		return err
+		return nil, err
 	}
-
-	go handleTCPOut(conn, eOut)
-	go handleTCPIn(conn, eIn)
-	return nil
+	return TConnection{conn, &PacketReader{conn}}, nil
 }
 
-/* traffic from client to target */
-func handleUDPOut(conn *net.UDPConn, eOut chan *Packet) {
-	for {
-		p := <-eOut
-		buf := new(bytes.Buffer)
-		err := Encode(p, buf)
-		if err != nil {
-			log.Error("Failed to marshal packet:", err)
-			continue
-		}
-
-		_, err = conn.Write(buf.Bytes())
-		if err != nil {
-			log.Error("Writing to Connection:", err)
-		}
+func createUDPConnection(connServer string) (Connection, error) {
+	raddr, err := net.ResolveUDPAddr("udp", connServer)
+	if err != nil {
+		log.Error("Resolving connServer:", err)
+		return nil, err
 	}
+
+	conn, err := net.DialUDP("udp", nil, raddr)
+	if err != nil {
+		log.Error("Dial remote:", err)
+		return nil, err
+	}
+	return UConnection{conn, raddr, &PacketReader{conn}}, nil
 }
 
-/* traffic from target to client */
-func handleUDPIn(conn *net.UDPConn, eIn chan *Packet) {
-	for {
-		// FIXME: Can we use UDPConn as a Reader directly?
-		p, err := Decode(conn)
-		if err != nil {
-			log.Error("Read from Connection:", err)
-			continue
+func handleOut(c Connection) <-chan *Packet {
+	toRemote := make(chan *Packet)
+	go func() {
+		for {
+			p := <-toRemote
+			err := c.writePacket(p)
+			if err != nil {
+				log.Error("Writing to Connection:", err)
+			}
 		}
-		eIn <- p
-	}
+	}()
+	return toRemote
 }
 
-/* traffic from client to target */
-func handleTCPOut(conn *net.TCPConn, eOut chan *Packet) {
-	for {
-		p := <-eOut
-		err := Encode(p, conn)
-		if err != nil {
-			log.Error("Failed to marshal packet:", err)
-			continue
+func handleIn(c Connection) chan<- *Packet {
+	fromRemote := make(chan *Packet)
+	go func() {
+		for {
+			p, err := c.readPacket()
+			if err != nil {
+				log.Error("Read from Connection:", err)
+				continue
+			}
+			fromRemote <- p
 		}
-	}
-}
-
-/* traffic from target to client */
-func handleTCPIn(conn *net.TCPConn, eIn chan *Packet) {
-	for {
-		p, err := Decode(conn)
-		if err != nil {
-			log.Error("Failed to unmarshal data:", err)
-			continue
-		}
-		eIn <- p
-	}
+	}()
+	return fromRemote
 }

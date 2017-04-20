@@ -16,22 +16,33 @@ const IvLen = 12
 const PacketHeaderSize = IvLen + IndexLen + 2
 const MTU = PacketSize - PacketHeaderSize
 
-type Iv [IvLen]byte
+type Iv []byte
 
 type Packet struct {
-	Iv   Iv
-	Sk   Index
-	Len  uint16
-	Data []byte
+	Iv            Iv
+	Sk            Index
+	Data          []byte
+	EncryptedData []byte
+}
+
+type PacketReader struct {
+	io.Reader
 }
 
 func (p Packet) String() string {
-	return fmt.Sprintf("Iv: [% x], Sk: [% x], len: %d, Data[% x]", p.Iv, p.Sk, p.Len, p.Data)
+	t := len(p.Data)
+	hasMore := ""
+	if t > 8 {
+		t = 8
+		hasMore = "..."
+	}
+	return fmt.Sprintf("Iv: [% x], Sk: [% x], len: %d, Data[% x]%v", p.Iv, p.Sk, len(p.Data), p.Data[:t], hasMore)
 }
 
-func Decode(r io.Reader) (*Packet, error) {
+func (r *PacketReader) NextPacket() (*Packet, error) {
 	var p Packet
-	_, err := io.ReadFull(r, p.Iv[:])
+	p.Iv = make([]byte, IvLen)
+	_, err := io.ReadFull(r, p.Iv)
 	if err != nil {
 		log.Error("failed to read initialization vector Iv:", err)
 		return nil, err
@@ -43,14 +54,15 @@ func Decode(r io.Reader) (*Packet, error) {
 		return nil, err
 	}
 
-	err = binary.Read(r, binary.BigEndian, &p.Len)
+	var len uint16
+	err = binary.Read(r, binary.BigEndian, &len)
 	if err != nil {
 		log.Error("binary read p.Header failed:", err)
 		return nil, err
 	}
 
-	p.Data = make([]byte, p.Len)
-	n, err := io.ReadFull(r, p.Data)
+	p.EncryptedData = make([]byte, len)
+	n, err := io.ReadFull(r, p.EncryptedData)
 	if err != nil {
 		log.Error("read %d bytes", n)
 		log.Error(err)
@@ -58,8 +70,9 @@ func Decode(r io.Reader) (*Packet, error) {
 	return &p, err
 }
 
-func Encode(p *Packet, w io.Writer) error {
-	_, err := w.Write(p.Iv[:])
+func (p *Packet) Encode(w io.Writer) (err error) {
+
+	_, err = w.Write(p.Iv[:])
 	if err != nil {
 		log.Error("failed to write Iv:", err)
 		return err
@@ -71,13 +84,14 @@ func Encode(p *Packet, w io.Writer) error {
 		return err
 	}
 
-	err = binary.Write(w, binary.BigEndian, p.Len)
+	len := uint16(len(p.EncryptedData))
+	err = binary.Write(w, binary.BigEndian, len)
 	if err != nil {
 		log.Error("binary write Packet data lengh to stream failed:", err)
 		return err
 	}
 
-	_, err = w.Write(p.Data)
+	_, err = w.Write(p.EncryptedData)
 	if err != nil {
 		log.Error("binary read Packet Data failed:", err)
 	}

@@ -21,22 +21,30 @@ func Test_EncodePacket(t *testing.T) {
 	}
 
 	p.Data = make([]byte, DATA_LEN)
-	n, err := rand.Read(p.Data)
+	_, err = rand.Read(p.Data)
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	p.Len = uint16(n)
 
 	buf := new(bytes.Buffer)
 
-	err = Encode(p, buf)
+	secret := []byte("SOME SECRET OF 32 BYTE .........")
+	err = EncryptPacket(p, secret)
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	q, err := Decode(buf)
+	err = p.Encode(buf)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	pr := PacketReader{buf}
+	q, err := pr.NextPacket()
+	DecryptPacket(q, secret)
 	if err != nil {
 		t.Error(err)
 		return

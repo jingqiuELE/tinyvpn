@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"testing"
+	"time"
 
 	"github.com/songgao/water"
 )
@@ -96,6 +97,9 @@ func TestBook(t *testing.T) {
 	}
 	pIn <- &op1
 	pIn <- &op2
+
+	// FIXME: using sleep to fix problem of returning faster than send, this might not always work!
+	time.Sleep(time.Millisecond * 100)
 
 	ttrwc.Return(ip1) // This should be returned to client 1
 

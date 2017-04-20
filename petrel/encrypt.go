@@ -50,22 +50,49 @@ func Decrypt(key, iv, encryptedData []byte) (data []byte, err error) {
 }
 
 func EncryptPacket(p *Packet, key []byte) error {
-	data, iv, err := Encrypt(key, IvLen, p.Data)
+	encrypted, iv, err := Encrypt(key, IvLen, p.Data)
 	if err != nil {
 		return err
 	}
 
-	p.Data = data
-	copy(p.Iv[:], iv)
+	p.EncryptedData = encrypted
+	p.Iv = iv
 
 	return nil
 }
 
 func DecryptPacket(p *Packet, key []byte) error {
-	data, err := Decrypt(key, p.Iv[:], p.Data)
+	data, err := Decrypt(key, p.Iv[:], p.EncryptedData)
 	if err != nil {
 		return err
 	}
 	p.Data = data
 	return nil
+}
+
+// TODO: Create multiple go routines for encryption/decryption, possibly dynamaically scale
+func encryptPackets(from <-chan *Packet, to chan<- *Packet, ss SecretSource) {
+	for {
+		p := <-from
+		key, ok := ss.getSecret(p.Sk)
+		if !ok {
+			log.Error("Cannot find secret for session:", p.Sk)
+			continue
+		}
+		EncryptPacket(p, key[:])
+		to <- p
+	}
+}
+
+func decryptPackets(from <-chan *Packet, to chan<- *Packet, ss SecretSource) {
+	for {
+		p := <-from
+		key, ok := ss.getSecret(p.Sk)
+		if !ok {
+			log.Error("Cannot find secret for session:", p.Sk)
+			continue
+		}
+		DecryptPacket(p, key[:])
+		to <- p
+	}
 }

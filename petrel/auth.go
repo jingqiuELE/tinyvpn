@@ -25,6 +25,18 @@ type AuthServer struct {
 
 const BUFFERSIZE = 1500
 
+type SecretSource interface {
+	getSecret(sk Index) (Secret, bool)
+}
+
+type StaticSecretSource struct {
+	Secret Secret
+}
+
+func (s *StaticSecretSource) getSecret(sk Index) (Secret, bool) {
+	return s.Secret, true
+}
+
 func newAuthServer(serverIP string, port int, vpnnet string, keyfile string) (*AuthServer, error) {
 	m := make(map[Index]Secret)
 	a := &AuthServer{secretMap: m}
@@ -61,11 +73,6 @@ func newAuthServer(serverIP string, port int, vpnnet string, keyfile string) (*A
 		}
 	}()
 	return a, err
-}
-
-func dumpString(s string) {
-	fmt.Println("dump start. len=", len(s))
-	fmt.Printf("% x ", s)
 }
 
 func (a *AuthServer) handleAuthConn(conn *net.TCPConn) error {
