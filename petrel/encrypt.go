@@ -72,21 +72,29 @@ func DecryptPacket(p *Packet, key []byte) error {
 
 // TODO: Create multiple go routines for encryption/decryption, possibly dynamaically scale
 func encryptPackets(from <-chan *Packet, to chan<- *Packet, ss SecretSource) {
+	log.Debug("ENCRYPT: Starting packet encyption")
 	for {
 		p := <-from
+		log.Debug("ENCRYPT RECEIVED: ", p)
 		key, ok := ss.getSecret(p.Sk)
+		log.Debug("ENCRYPT SECRET:", key, ok)
 		if !ok {
 			log.Error("Cannot find secret for session:", p.Sk)
 			continue
 		}
+		log.Debug("ENCRYPT BEFORE ENP:", key)
 		EncryptPacket(p, key[:])
+		log.Debug("ENCRYPT AFTER ENP:", to, len(to), cap(to))
 		to <- p
+		log.Debug("ENCRYPT SENT : ", p, len(to), cap(to))
 	}
 }
 
 func decryptPackets(from <-chan *Packet, to chan<- *Packet, ss SecretSource) {
+	log.Debug("DECRYPT: Starting packet encyption")
 	for {
 		p := <-from
+		log.Debug("DECRYPT RECEIVED : ", p)
 		key, ok := ss.getSecret(p.Sk)
 		if !ok {
 			log.Error("Cannot find secret for session:", p.Sk)
@@ -94,5 +102,6 @@ func decryptPackets(from <-chan *Packet, to chan<- *Packet, ss SecretSource) {
 		}
 		DecryptPacket(p, key[:])
 		to <- p
+		log.Debug("DECRYPT SENT : ", p)
 	}
 }

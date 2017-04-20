@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -72,28 +73,35 @@ func (r *PacketReader) NextPacket() (*Packet, error) {
 
 func (p *Packet) Encode(w io.Writer) (err error) {
 
-	_, err = w.Write(p.Iv[:])
+	buf := new(bytes.Buffer)
+	_, err = buf.Write(p.Iv[:])
 	if err != nil {
 		log.Error("failed to write Iv:", err)
 		return err
 	}
 
-	_, err = w.Write(p.Sk[:])
+	_, err = buf.Write(p.Sk[:])
 	if err != nil {
 		log.Error("failed to write Sk:", err)
 		return err
 	}
 
 	len := uint16(len(p.EncryptedData))
-	err = binary.Write(w, binary.BigEndian, len)
+	err = binary.Write(buf, binary.BigEndian, len)
 	if err != nil {
 		log.Error("binary write Packet data lengh to stream failed:", err)
 		return err
 	}
 
-	_, err = w.Write(p.EncryptedData)
+	_, err = buf.Write(p.EncryptedData)
 	if err != nil {
 		log.Error("binary read Packet Data failed:", err)
 	}
+
+	_, err = buf.WriteTo(w)
+	if err != nil {
+		log.Error("Failed to write buffer to interface", err)
+	}
+
 	return err
 }

@@ -75,7 +75,7 @@ func (tunnel *Tunnel) writeHandler(tun *water.Interface) chan<- *Packet {
 }
 
 func (tunnel *Tunnel) readHandler(tun *water.Interface) <-chan *Packet {
-	out := make(chan *Packet)
+	out := make(chan *Packet, 100)
 	go func() {
 		for {
 			buffer := make([]byte, MTU)
@@ -98,8 +98,9 @@ func (tunnel *Tunnel) readHandler(tun *water.Interface) <-chan *Packet {
 			p := new(Packet)
 			p.Sk = sk
 			p.Data = buffer[:n]
-			log.Debug("TUN RECEIVED: ", p)
+			log.Debug("TUN RECEIVED: ", p, len(out), cap(out))
 			out <- p
+			log.Debug("TUN HANDLED : ", p)
 		}
 	}()
 	return out

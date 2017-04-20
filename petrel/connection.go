@@ -228,7 +228,7 @@ func startConnection(serverAddr string, protocol string, port int) (chan<- *Pack
 
 	toServer := handleOut(c)
 	fromServer := handleIn(c)
-	return fromServer, toServer, nil
+	return toServer, fromServer, nil
 }
 
 func createTCPConnection(connServer string) (Connection, error) {
@@ -261,11 +261,13 @@ func createUDPConnection(connServer string) (Connection, error) {
 	return UConnection{conn, raddr, &PacketReader{conn}}, nil
 }
 
-func handleOut(c Connection) <-chan *Packet {
-	toRemote := make(chan *Packet)
+func handleOut(c Connection) chan<- *Packet {
+	toRemote := make(chan *Packet, 100)
+	log.Debug("CONN OUT START", toRemote, len(toRemote), cap(toRemote))
 	go func() {
 		for {
 			p := <-toRemote
+			log.Debug("CONN HOUT: got packet to send", p, toRemote, len(toRemote), cap(toRemote))
 			err := c.writePacket(p)
 			if err != nil {
 				log.Error("Writing to Connection:", err)
@@ -275,11 +277,13 @@ func handleOut(c Connection) <-chan *Packet {
 	return toRemote
 }
 
-func handleIn(c Connection) chan<- *Packet {
+func handleIn(c Connection) <-chan *Packet {
 	fromRemote := make(chan *Packet)
+	log.Debug("CONN IN START", fromRemote)
 	go func() {
 		for {
 			p, err := c.readPacket()
+			log.Debug("CONN H_IN: received packet", p)
 			if err != nil {
 				log.Error("Read from Connection:", err)
 				continue
