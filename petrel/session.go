@@ -1,6 +1,6 @@
 //session includes the type definition for a client's session.
 //A session has an index, which maps to a randomly generated session secret.
-package session
+package main
 
 import (
 	"crypto/rand"
@@ -12,6 +12,18 @@ const SecretLen = 32
 
 type Index [IndexLen]byte
 type Secret [SecretLen]byte
+
+func addSessionKey(in <-chan *Packet, sk Index) <-chan *Packet {
+	out := make(chan *Packet)
+	go func() {
+		for {
+			p := <-in
+			p.Sk = sk
+			out <- p
+		}
+	}()
+	return out
+}
 
 func NewIndex() (*Index, error) {
 	k := new(Index)

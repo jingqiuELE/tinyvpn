@@ -1,7 +1,6 @@
-package ippool
+package main
 
 import (
-	"fmt"
 	"net"
 	"testing"
 )
@@ -25,7 +24,6 @@ func Test_Ippool(t *testing.T) {
 		in, err = p.Get()
 		if in != nil {
 			ips[index] = in
-			fmt.Println(ips[index].IP.String())
 		} else {
 			t.Error(err)
 			break

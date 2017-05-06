@@ -13,9 +13,10 @@ fi
 
 PROTO=$1
 
-# Limit iperf buffer length to be the mss of UDP packet (MTU-Header_size)
+# Limit iperf buffer length to be the mss of UDP packet, which equals to 
+# MSS = MTU - Header_size = 1412 - 28 = 1384
 if [ $PROTO == "udp" ]; then
-    PROTO="-u -l 1432"
+    PROTO="-u -l 1384"
 else
     PROTO=""
 fi

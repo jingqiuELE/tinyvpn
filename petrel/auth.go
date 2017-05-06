@@ -6,15 +6,11 @@ import (
 	"crypto/rsa"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"strconv"
 	"sync"
-
-	"github.com/jingqiuELE/tinyvpn/internal/encrypt"
-	"github.com/jingqiuELE/tinyvpn/internal/ippool"
-	"github.com/jingqiuELE/tinyvpn/internal/rsautil"
-	"github.com/jingqiuELE/tinyvpn/internal/session"
 )
 
 var ErrUser = errors.New("User crenditial is wrong")
@@ -23,12 +19,26 @@ var privateKey rsa.PrivateKey
 
 type AuthServer struct {
 	sync.RWMutex
-	secretMap  map[session.Index]session.Secret
-	ipAddrPool ippool.IPAddrPool
+	secretMap  map[Index]Secret
+	ipAddrPool IPAddrPool
+}
+
+const BUFFERSIZE = 1500
+
+type SecretSource interface {
+	getSecret(sk Index) (Secret, bool)
+}
+
+type StaticSecretSource struct {
+	Secret Secret
+}
+
+func (s *StaticSecretSource) getSecret(sk Index) (Secret, bool) {
+	return s.Secret, true
 }
 
 func newAuthServer(serverIP string, port int, vpnnet string, keyfile string) (*AuthServer, error) {
-	m := make(map[session.Index]session.Secret)
+	m := make(map[Index]Secret)
 	a := &AuthServer{secretMap: m}
 
 	serverAddr := serverIP + ":" + strconv.Itoa(port)
@@ -48,9 +58,9 @@ func newAuthServer(serverIP string, port int, vpnnet string, keyfile string) (*A
 		log.Errorf("Failed to parse CIDR: %s: %v", err, vpnnet)
 		return a, err
 	}
-	a.ipAddrPool = ippool.NewIPAddrPool(internalIP, ipNet)
+	a.ipAddrPool = NewIPAddrPool(internalIP, ipNet)
 
-	rsautil.LoadKey(keyfile, &privateKey)
+	LoadKey(keyfile, &privateKey)
 
 	go func() {
 		for {
@@ -65,13 +75,8 @@ func newAuthServer(serverIP string, port int, vpnnet string, keyfile string) (*A
 	return a, err
 }
 
-func dumpString(s string) {
-	fmt.Println("dump start. len=", len(s))
-	fmt.Printf("% x ", s)
-}
-
 func (a *AuthServer) handleAuthConn(conn *net.TCPConn) error {
-	var session_secret session.Secret
+	var session_secret Secret
 
 	buf := make([]byte, 1024)
 	n, err := conn.Read(buf)
@@ -80,7 +85,7 @@ func (a *AuthServer) handleAuthConn(conn *net.TCPConn) error {
 		return err
 	}
 
-	secret := rsautil.GetRandomSessionKey()
+	secret := GetRandomSessionKey()
 	err = rsa.DecryptPKCS1v15SessionKey(rand.Reader, &privateKey, buf[:n],
 		secret)
 
@@ -90,15 +95,15 @@ func (a *AuthServer) handleAuthConn(conn *net.TCPConn) error {
 	}
 	log.Debug("Decrypted session key is ", secret)
 
-	sk, err := session.NewIndex()
+	sk, err := NewIndex()
 	if err != nil {
 		log.Error("Failed to create new Index:", err)
 		return err
 	}
 	log.Debug("session index:", sk)
-	log.Debug("Received session secret: ", secret[:session.SecretLen])
+	log.Debug("Received session secret: ", secret[:SecretLen])
 
-	copy(session_secret[:], secret[:session.SecretLen])
+	copy(session_secret[:], secret[:SecretLen])
 	a.setSecret(*sk, session_secret)
 
 	ip, err := a.ipAddrPool.Get()
@@ -109,7 +114,7 @@ func (a *AuthServer) handleAuthConn(conn *net.TCPConn) error {
 	log.Debug("Assigning IP: ", assignIP)
 
 	buf = append((*sk)[:], assignIP...)
-	encrypt_data, iv, err := encrypt.Encrypt(secret, aes.BlockSize, buf)
+	encrypt_data, iv, err := Encrypt(secret, aes.BlockSize, buf)
 	if err != nil {
 		return err
 	}
@@ -122,15 +127,75 @@ func (a *AuthServer) handleAuthConn(conn *net.TCPConn) error {
 	return err
 }
 
-func (a *AuthServer) setSecret(sk session.Index, secret session.Secret) {
+func (a *AuthServer) setSecret(sk Index, secret Secret) {
 	a.Lock()
 	a.secretMap[sk] = secret
 	a.Unlock()
 }
 
-func (a *AuthServer) getSecret(sk session.Index) (session.Secret, bool) {
+func (a *AuthServer) getSecret(sk Index) (Secret, bool) {
 	a.RLock()
 	secret, ok := a.secretMap[sk]
 	a.RUnlock()
 	return secret, ok
+}
+
+func authGetSession(serverAddr string, port int, keyfile string) (sk Index, ss Secret, ip net.IP, err error) {
+	var publicKey rsa.PublicKey
+
+	authServer := serverAddr + ":" + strconv.Itoa(port)
+	raddr, err := net.ResolveTCPAddr("tcp", authServer)
+	if err != nil {
+		fmt.Println("Error when resolving authServer:", err)
+		return
+	}
+
+	conn, err := net.DialTCP("tcp", nil, raddr)
+	if err != nil {
+		fmt.Println("Dail error:", err)
+		return
+	}
+	defer conn.Close()
+
+	secret, err := NewSecret()
+	if err != nil {
+		log.Error("Failed to create new Secret:", err)
+		return
+	}
+	log.Debug("Generated session secret: ", secret)
+	ss = *secret
+
+	LoadKey(keyfile, &publicKey)
+	encrypt_session_key, err := rsa.EncryptPKCS1v15(rand.Reader, &publicKey, (*secret)[:])
+	if err != nil {
+		fmt.Println("Error encrypting session key ", err.Error())
+		return
+	}
+
+	_, err = conn.Write(encrypt_session_key)
+	if err != nil {
+		fmt.Println("Error writing:", err)
+		return
+	}
+
+	buf := make([]byte, BUFFERSIZE)
+	n, err := conn.Read(buf)
+	if err != nil {
+		fmt.Println("Read error:", err)
+		if err != io.EOF {
+			return
+		}
+	}
+
+	iv := buf[0:aes.BlockSize]
+	payload := buf[aes.BlockSize:n]
+	data, err := Decrypt((*secret)[:], iv, payload)
+
+	copy(sk[:], data[0:IndexLen])
+
+	index := IndexLen
+	ip = net.IPv4(data[index], data[index+1], data[index+2], data[index+3])
+	log.Info("Assigned IP address:", ip.String())
+
+	return
 }

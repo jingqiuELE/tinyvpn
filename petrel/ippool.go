@@ -1,4 +1,4 @@
-package ippool
+package main
 
 import (
 	"errors"

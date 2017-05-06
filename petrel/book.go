@@ -1,120 +1,136 @@
 package main
 
 import (
-	"github.com/codeskyblue/go-sh"
-	"github.com/jingqiuELE/tinyvpn/internal/packet"
-	"github.com/jingqiuELE/tinyvpn/internal/session"
-	"github.com/songgao/water"
-	"github.com/songgao/water/waterutil"
+	"os/exec"
+	"strings"
 	"sync"
+
+	"github.com/songgao/water"
 )
 
-type Book struct {
+type Book interface {
+	getSession(ip string) (Index, bool)
+	getIp(sessionIndex Index) (string, bool)
+	Add(ip string, sessionIndex Index)
+}
+
+type StaticBook struct {
+	Sk Index
+	Ip string
+}
+
+func (b *StaticBook) getSession(ip string) (Index, bool) {
+	return b.Sk, true
+}
+
+func (b *StaticBook) getIp(sessionIndex Index) (string, bool) {
+	return b.Ip, true
+}
+
+func (b *StaticBook) Add(ip string, sessionIndex Index) {}
+
+type DynBook struct {
 	sync.RWMutex
-	ipToSession map[string]session.Index
-	sessionToIp map[session.Index]string
+	ipToSession map[string]Index
+	sessionToIp map[Index]string
 }
 
 type BookServer struct {
-	book *Book
-	pOut chan packet.Packet
-	pIn  chan packet.Packet
+	book *DynBook
+	pOut chan *Packet
+	pIn  chan *Packet
 	tun  *water.Interface
 }
 
-func newBookServer(pOut, pIn chan packet.Packet, vpnnet string, tun *water.Interface) (bs *BookServer, err error) {
-	bs = &BookServer{
-		book: newBook(),
-		pOut: pOut,
-		pIn:  pIn,
-		tun:  tun,
-	}
-	return
-}
+//func newBookServer(pOut, pIn chan *Packet, vpnnet string, tun *water.Interface) (bs *BookServer, err error) {
+//bs = &BookServer{
+//book: newDynBook(),
+//pOut: pOut,
+//pIn:  pIn,
+//tun:  tun,
+//}
+//return
+//}
 
-func (bs *BookServer) start() {
-	go bs.listenTun()
-	for {
-		p, ok := <-bs.pIn
-		if !ok {
-			log.Error("Failed to read from pIn:")
-			return
-		}
-		src_ip := waterutil.IPv4Source(p.Data)
-		log.Debug("Book: from client", src_ip)
-		log.Debug("Book: datalen=", len(p.Data))
+//func (bs *BookServer) start() {
+//go bs.listenTun()
+//for {
+//p, ok := <-bs.pIn
+//if !ok {
+//log.Error("Failed to read from pIn:")
+//return
+//}
+//src_ip := waterutil.IPv4Source(p.Data)
+//log.Debug("Book: from client", src_ip)
+//log.Debug("Book: datalen=", len(p.Data))
 
-		bs.book.Add(src_ip.String(), p.Header.Sk)
-		_, err := bs.tun.Write(p.Data)
-		if err != nil {
-			log.Error("Error writing to tun!", err)
-		}
-	}
-}
+//bs.book.Add(src_ip.String(), p.Sk)
+//_, err := bs.tun.Write(p.Data)
+//if err != nil {
+//log.Error("Error writing to tun!", err)
+//}
+//}
+//}
 
-/* Handle traffic from target to client */
-func (bs *BookServer) listenTun() error {
-	buffer := make([]byte, packet.MTU)
-	for {
-		n, err := bs.tun.Read(buffer)
-		if err != nil {
-			log.Error("Error reading from tunnel.")
-			return err
-		}
+//[> Handle traffic from target to client <]
+//func (bs *BookServer) listenTun() error {
+//buffer := make([]byte, MTU)
+//for {
+//n, err := bs.tun.Read(buffer)
+//if err != nil {
+//log.Error("Error reading from tunnel.")
+//return err
+//}
 
-		dst_ip := waterutil.IPv4Destination(buffer[:n])
-		log.Debug("Book: to client", dst_ip)
+//dst_ip := waterutil.IPv4Destination(buffer[:n])
 
-		p := packet.NewPacket()
-		sk := bs.book.getSession(dst_ip.String())
-		p.Header.Sk = sk
-		p.SetData(buffer[:n])
-		bs.pOut <- *p
-	}
-}
+//p := new(Packet)
+//sk, _ := bs.book.getSession(dst_ip.String())
+//p.Sk = sk
+//p.Data = buffer[:n]
+//log.Debug("Book: to client", p)
+//bs.pOut <- p
+//}
+//}
 
-func newBook() *Book {
-	b := new(Book)
-	b.ipToSession = make(map[string]session.Index)
-	b.sessionToIp = make(map[session.Index]string)
+func newDynBook() *DynBook {
+	b := new(DynBook)
+	b.ipToSession = make(map[string]Index)
+	b.sessionToIp = make(map[Index]string)
 	return b
 }
-func (b *Book) getSession(ip string) session.Index {
+
+func (b *DynBook) getSession(ip string) (Index, bool) {
 	b.RLock()
-	key := b.ipToSession[ip]
+	sk, ok := b.ipToSession[ip]
 	b.RUnlock()
-	return key
+	return sk, ok
 }
 
-func (b *Book) getIp(sessionIndex session.Index) string {
+func (b *DynBook) getIp(sessionIndex Index) (string, bool) {
 	b.RLock()
-	ip := b.sessionToIp[sessionIndex]
+	ip, ok := b.sessionToIp[sessionIndex]
 	b.RUnlock()
-	return ip
+	return ip, ok
 }
 
-func (b *Book) Add(ip string, sessionIndex session.Index) {
+func (b *DynBook) Add(ip string, sessionIndex Index) {
 	b.Lock()
 	b.ipToSession[ip] = sessionIndex
 	b.sessionToIp[sessionIndex] = ip
 	b.Unlock()
 }
 
-// shell scripts to manipulate tun network interface device.
-
-func getDefaultRouteIf() (string, error) {
-	ifce, err := sh.Command("ip", "route", "show", "default").Command("awk", "/default/ {print $5}").Output()
-	return string(ifce[:]), err
-}
-
 func SetNAT() error {
-	var err error
-	default_if, err := getDefaultRouteIf()
+	route, err := exec.Command("ip", "route", "show", "default", "0.0.0.0/0").Output()
 	if err != nil {
 		log.Error("Cannot get the default routing interface")
-	} else {
-		log.Info("Default route interface is", default_if)
-		err = sh.Command("iptables", "-t", "nat", "-A", "POSTROUTING", "-o", default_if, "-j", "MASQUERADE").Run()
+		return err
 	}
+	parts := strings.Split(string(route), " ")
+	ifce := parts[4] // default via 192.168.1.1 dev wlp3s0  proto static  metric 600
+
+	log.Info("Default route interface is", ifce)
+	_, err = exec.Command("iptables", "-t", "nat", "-A", "POSTROUTING", "-o", ifce, "-j", "MASQUERADE").Output()
 	return err
 }

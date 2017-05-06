@@ -1,105 +1,109 @@
 package main
 
 import (
-	"errors"
 	"os"
-	"os/signal"
-	"syscall"
 
-	"github.com/jingqiuELE/tinyvpn/internal/logger"
-	"github.com/jingqiuELE/tinyvpn/internal/packet"
-	"github.com/jingqiuELE/tinyvpn/internal/tunnel"
 	"github.com/op/go-logging"
-	"github.com/songgao/water"
 
 	flag "github.com/spf13/pflag"
 )
 
-var log = logger.Get(logging.DEBUG)
+var log = GetLogger(logging.ERROR)
 
 func main() {
-
 	const channelSize = 10
-	var (
-		tcpPort, udpPort, authPort int
-		serverAddr, vpnnet         string
-		keyfile                    string
 
-		eOut = make(chan packet.Packet, channelSize)
-		pOut = make(chan packet.Packet, channelSize)
-		eIn  = make(chan packet.Packet, channelSize)
-		pIn  = make(chan packet.Packet, channelSize)
-	)
+	authPort := flag.IntP("auth", "a", 7282, "Port for the authentication service to listen to.")
+	port := flag.IntP("port", "p", 8272, "Port to connect to")
+	serverAddr := flag.StringP("serverAddr", "s", "0.0.0.0", "IP address the server suppose to listen to, e.g. 127.0.0.1")
+	vpnnet := flag.StringP("vpnnet", "n", "172.0.1.1/24", "Subnet netmask for the VPN subnet, e.g. 172.0.0.1/24")
+	mode := os.Args[1]
 
-	flag.IntVarP(&authPort, "auth", "a", 7282, "Port for the authentication service to listen to.")
-	flag.IntVarP(&tcpPort, "tcp", "t", 8272, "TCP port to listen to, 0 to disable tcp")
-	flag.IntVarP(&udpPort, "udp", "u", 8272, "UDP port to listen to, 0 to disable udp")
-	flag.StringVarP(&serverAddr, "serverAddr", "s", "0.0.0.0", "IP address the server suppose to listen to, e.g. 127.0.0.1")
-	flag.StringVarP(&vpnnet, "vpnnet", "n", "172.0.1.1/24", "Subnet netmask for the VPN subnet, e.g. 172.0.0.1/24")
-	flag.StringVarP(&keyfile, "keyfile", "k", "./private.key", "private key for the Auth server")
-	flag.Parse()
+	switch mode {
+	case "client":
+		keyfile := flag.StringP("keyfile", "k", "./public.key", "Public key file used for client authentication")
+		protocol := flag.StringP("protocol", "t", "tcp", "Protocol used for connection, tcp or udp")
+		flag.Parse()
 
-	log.Infof("Values of the config are: Auth %v, TCP %v, UDP %v, ServerAddr %v, vpnnet %v, keyfile %v",
-		authPort, tcpPort, udpPort, serverAddr, vpnnet, keyfile)
+		err := runClient(*serverAddr, *authPort, *port, *keyfile, *protocol)
+		if err != nil {
+			log.Fatal(err)
+		}
+	case "server":
+		keyfile := flag.StringP("keyfile", "k", "./private.key", "Private key for server to use for authentication")
+		flag.Parse()
 
+		err := runServer(*serverAddr, *vpnnet, *keyfile, *authPort, *port, *port)
+		if err != nil {
+			log.Fatal(err)
+		}
+	default:
+		log.Fatalf("Petrel needs to run either as client or server, please try\n\npetrel client\n")
+	}
+
+	select {} // Block to prevent exit
+}
+
+func runClient(serverAddr string, authPort, port int, keyfile string, protocol string) error {
+
+	// Authenticate with auth server first
+	sk, secret, ip, err := authGetSession(serverAddr, authPort, keyfile)
+	if err != nil {
+		log.Error("Failed to auth myself:", err)
+		return err
+	}
+
+	// Create local tun device
+	book := &StaticBook{sk, ip.String()}
+	toTun, fromTun, err := startTUN(ip.String(), MTU, book)
+	if err != nil {
+		log.Error("Failed to start Tunnel device:", err)
+		return err
+	}
+
+	toServer, fromServer, err := startConnection(serverAddr, protocol, port)
+	if err != nil {
+		log.Error("Failed to start connection to server:", err)
+		return err
+	}
+
+	ss := &StaticSecretSource{secret}
+
+	go encryptPackets(fromTun, toServer, ss)
+	go decryptPackets(fromServer, toTun, ss)
+
+	return nil
+}
+
+func runServer(serverAddr, vpnnet, keyfile string, authPort, tcpPort, udpPort int) error {
 	a, err := newAuthServer(serverAddr, authPort, vpnnet, keyfile)
 	if err != nil {
 		log.Errorf("Failed to create AuthServer %v", err)
-		return
+		return err
 	}
 
-	_, err = newConnServer(serverAddr, tcpPort, udpPort, eOut, eIn)
+	// Create local tun device
+	book := newDynBook()
+	toTun, fromTun, err := startTUN(vpnnet, MTU, book)
+	if err != nil {
+		log.Error("Failed to start Tunnel device:", err)
+		return err
+	}
+
+	toClient, fromClient, err := startConnServer(serverAddr, tcpPort, udpPort)
 	if err != nil {
 		log.Error("Failed to create ConnServer:", err)
-		return
+		return err
 	}
 
-	_, err = newEncryptServer(a, eOut, eIn, pOut, pIn)
-	if err != nil {
-		log.Error("Failed to create EncryptServer:", err)
-		return
-	}
-
-	tun, err := water.NewTUN("")
-	if err != nil {
-		log.Error("Error creating tun interface", err)
-		return
-	}
-	err = tunnel.AddAddr(tun, vpnnet)
-	if err != nil {
-		log.Error(err)
-		return
-	}
-	err = tunnel.SetMtu(tun, packet.MTU)
-	if err != nil {
-		log.Error(err)
-		return
-	}
-	err = tunnel.Bringup(tun)
-	if err != nil {
-		log.Error(err)
-		return
-	}
 	err = SetNAT()
 	if err != nil {
-		log.Error(err)
-		return
+		log.Error("Failed to setup NAT", err)
+		return err
 	}
 
-	b, err := newBookServer(pOut, pIn, vpnnet, tun)
-	if err != nil {
-		log.Error("Failed to create BookServer:", err)
-		return
-	}
+	go encryptPackets(fromTun, toClient, a)
+	go decryptPackets(fromClient, toTun, a)
 
-	//Receive system signal to stop the server.
-	go func() {
-		sigs := make(chan os.Signal, 1)
-		signal.Notify(sigs, os.Kill)
-		signal.Notify(sigs, syscall.SIGTERM)
-		s := <-sigs
-		log.Notice("Received signal", errors.New(s.String()))
-	}()
-
-	b.start()
+	return nil
 }
