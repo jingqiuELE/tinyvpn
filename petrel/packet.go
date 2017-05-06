@@ -8,14 +8,21 @@ import (
 )
 
 //Assuming ethernet network interface has MTU 1500 bytes, from which we reduce
-//the size of IPv4 header(minimal 20 bytes) and UDP header(8 bytes), to get the
+//the size of IPv4 header(minimal 20 bytes) and TCP header(32 bytes), to get the
 //allowed packet size of petrel. The purpose of this is to fit a petrel packet in
 //one frame without IP fragmentation.
-const PacketSize = 1500 - 28
+const IPHeaderLen = 20
+const TCPHeaderLen = 32
+const UDPHeaderLen = 8
 
 const IvLen = 12
 const PacketHeaderSize = IvLen + IndexLen + 2
-const MTU = PacketSize - PacketHeaderSize
+const GCMAuthTagLen = 16
+
+const EthernetMTU = 1500
+const MTU = EthernetMTU - IPHeaderLen - TCPHeaderLen - PacketHeaderSize - GCMAuthTagLen
+
+const PacketSize = MTU + IPHeaderLen + UDPHeaderLen
 
 type Iv []byte
 

@@ -23,7 +23,6 @@ docker-tcpdump:
 run: clean start_container $(EXECUTABLE)
 	docker exec $(MININET_NAME) mkdir -p $(WORK_DIR)
 	docker cp $(EXECUTABLE) $(MININET_NAME):$(WORK_DIR)
-	docker cp $(EXECUTABLE) $(MININET_NAME):$(WORK_DIR)
 	docker cp $(SCRIPTS) $(MININET_NAME):$(WORK_DIR)
 	docker cp $(KEY) $(MININET_NAME):$(WORK_DIR)
 	docker exec -it $(MININET_NAME) $(CMD_START_MN)

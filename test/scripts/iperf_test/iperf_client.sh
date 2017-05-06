@@ -18,7 +18,7 @@ BW=""
 # By default, iperf will limit the bandwidth of UDP traffic to 1Mbps. Set the limit to be 1Gbps instead.
 
 if [ $PROTO == "udp" ]; then
-    PROTO="-u -l 1432"
+    PROTO="-u -l 1384"
     BW="-b 1g"
 else
     PROTO=""

@@ -8,7 +8,7 @@ import (
 	flag "github.com/spf13/pflag"
 )
 
-var log = GetLogger(logging.DEBUG)
+var log = GetLogger(logging.ERROR)
 
 func main() {
 	const channelSize = 10

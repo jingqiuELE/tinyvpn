@@ -80,7 +80,7 @@ func (tunnel *Tunnel) readHandler(tun *water.Interface) <-chan *Packet {
 		for {
 			buffer := make([]byte, MTU)
 			n, err := tunnel.tun.Read(buffer)
-			log.Debug("TUN READ:", buffer[:n])
+			log.Debug("TUN READ:", n)
 			if err != nil {
 				log.Error("Error reading from tunnel.")
 				return

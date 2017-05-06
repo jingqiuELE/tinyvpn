@@ -100,6 +100,7 @@ func decryptPackets(from <-chan *Packet, to chan<- *Packet, ss SecretSource) {
 			log.Error("Cannot find secret for session:", p.Sk)
 			continue
 		}
+		log.Debug("DECRYPT: got Secret")
 		DecryptPacket(p, key[:])
 		to <- p
 		log.Debug("DECRYPT SENT : ", p)
